@@ -48,9 +48,16 @@
 
 <div align="center">
 
-🚀 [TradingAgents](#tradingagents-framework) | ⚡ [Installation & CLI](#installation-and-cli) | 🎬 [Demo](https://www.youtube.com/watch?v=90gr5lwjIho) | 📦 [Package Usage](#tradingagents-package) | 🤝 [Contributing](#contributing) | 📄 [Citation](#citation)
+🚀 [TradingAgents](#tradingagents-framework) | 📚 [Chinese Docs](docs/cn/README.md) | ⚡ [Installation & CLI](#installation-and-cli) | 🎬 [Demo](https://www.youtube.com/watch?v=90gr5lwjIho) | 📦 [Package Usage](#tradingagents-package) | 🤝 [Contributing](#contributing) | 📄 [Citation](#citation)
 
 </div>
+
+## Chinese Documentation
+
+For a complete Chinese documentation system covering quick start, principles, architecture, configuration, extension development, source code index, and contributor guidance, start here:
+
+- [Chinese Documentation Center](docs/cn/README.md)
+- [Full Chinese Complete Guide](docs/cn/tradingagents-complete-guide.md)
 
 ## TradingAgents Framework
 
