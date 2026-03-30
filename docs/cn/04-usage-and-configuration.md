@@ -67,8 +67,8 @@ Python API 适合：
 ```python
 DEFAULT_CONFIG = {
     "llm_provider": "openai",
-    "deep_think_llm": "gpt-5.2",
-    "quick_think_llm": "gpt-5-mini",
+    "deep_think_llm": "gpt-5.4",
+    "quick_think_llm": "gpt-5.4-mini",
     "max_debate_rounds": 1,
     "max_risk_discuss_rounds": 1,
     "max_recur_limit": 100,
@@ -102,15 +102,48 @@ DEFAULT_CONFIG = {
 1. 轮数低，结论更快，但可能不够全面。
 2. 轮数高，讨论更充分，但也更慢、更贵。
 
+如果你在意的是实验可比性，而不是单次“看起来更聪明”的输出，那么这两个参数最好成对记录。因为它们不只是性能参数，更是系统行为风格参数。
+
+### max_recur_limit
+
+max_recur_limit 对应图执行时的 recursion_limit。它的作用不是改善结论质量，而是防止异常循环把图执行无限拉长。
+
+可以这样理解它：
+
+1. 太低，复杂流程可能还没走完整就被截断。
+2. 太高，异常条件边或工具循环会更难被及时发现。
+3. 默认值 100 对当前主流程是偏保守的安全上限，通常不需要在首次使用时调整。
+
 ### data_vendors 与 tool_vendors
 
 data_vendors 用于按能力类别设置默认供应商，tool_vendors 用于按具体工具覆写类别默认值。
+
+当前能力类别定义在 [tradingagents/dataflows/interface.py](../../tradingagents/dataflows/interface.py)，可直接对应为：
+
+| 类别 | 典型工具 | 作用 |
+| ---- | ---- | ---- |
+| core_stock_apis | get_stock_data | 股票价格与基础行情 |
+| technical_indicators | get_indicators | 技术指标计算 |
+| fundamental_data | get_fundamentals、get_balance_sheet、get_cashflow、get_income_statement | 公司财务与基本面数据 |
+| news_data | get_news、get_global_news、get_insider_transactions | 新闻、全局事件与内幕交易数据 |
+
+tool_vendors 的优先级高于 data_vendors，而且支持逗号分隔的回退链。例如：
+
+```python
+config["tool_vendors"] = {
+  "get_news": "yfinance,alpha_vantage",
+}
+```
+
+这表示 get_news 会先尝试 yfinance，只有主供应商失败时才回退到 alpha_vantage。
 
 这意味着你可以：
 
 1. 大多数工具走 yfinance。
 2. 仅把少数关键工具切到 Alpha Vantage。
 3. 甚至给某个工具配置供应商回退链。
+
+需要注意的是，当前回退逻辑只会在特定异常路径上触发，最典型的是 AlphaVantageRateLimitError。不要把“配置了两个供应商”理解成“任何失败都会自动无损切换”。
 
 ## 一个稳妥的配置思路
 
@@ -139,8 +172,8 @@ from tradingagents.default_config import DEFAULT_CONFIG
 
 config = DEFAULT_CONFIG.copy()
 config["llm_provider"] = "openai"
-config["quick_think_llm"] = "gpt-5-mini"
-config["deep_think_llm"] = "gpt-5-mini"
+config["quick_think_llm"] = "gpt-5.4-mini"
+config["deep_think_llm"] = "gpt-5.4-mini"
 config["max_debate_rounds"] = 1
 config["max_risk_discuss_rounds"] = 1
 ```
@@ -154,8 +187,8 @@ from tradingagents.default_config import DEFAULT_CONFIG
 
 config = DEFAULT_CONFIG.copy()
 config["llm_provider"] = "openai"
-config["quick_think_llm"] = "gpt-5-mini"
-config["deep_think_llm"] = "gpt-5.2"
+config["quick_think_llm"] = "gpt-5.4-mini"
+config["deep_think_llm"] = "gpt-5.4"
 config["max_debate_rounds"] = 2
 config["max_risk_discuss_rounds"] = 2
 ```
@@ -204,6 +237,8 @@ config["tool_vendors"] = {
 
 当你已经有一个相对稳定的基线配置时，再去优化成本、吞吐和回退链，效率会更高。
 
+如果你只有一组可用 API Key，建议优先把它花在最稳定的主路径上，而不是同时追求“多供应商”“多模型”“高轮数”三件事。对大多数用户来说，单供应商 + 低轮数 + 清晰日志，比复杂但难复现实验更有价值。
+
 ## Python API 的一个推荐模式
 
 ```python
@@ -212,8 +247,8 @@ from tradingagents.default_config import DEFAULT_CONFIG
 
 config = DEFAULT_CONFIG.copy()
 config["llm_provider"] = "openai"
-config["quick_think_llm"] = "gpt-5-mini"
-config["deep_think_llm"] = "gpt-5.2"
+config["quick_think_llm"] = "gpt-5.4-mini"
+config["deep_think_llm"] = "gpt-5.4"
 
 graph = TradingAgentsGraph(
     selected_analysts=["market", "news", "fundamentals"],
@@ -247,9 +282,25 @@ print(decision)
 
 这样做的意义在于，你后续复盘时不会只剩下一个 BUY 或 SELL，而能追溯结论是如何形成的。
 
+进一步地，建议把实验迭代固定成一轮只改一个变量：
+
+1. 先固定 Analyst 组合和轮数，比较不同模型。
+2. 再固定模型，只比较数据供应商或回退链。
+3. 最后在已有基线之上调整辩论轮数。
+
+如果你一轮实验同时改 3 个变量，得到的不是“结论”，而是新的解释难题。
+
 ## 小结
 
 正确使用 TradingAgents 的关键，不在于找到某个“神奇配置”，而在于建立一套可比较、可复现、可解释的配置方法。
+
+## 自测检查清单
+
+- [ ] 我知道 llm_provider、quick_think_llm 和 deep_think_llm 分别解决什么问题。
+- [ ] 我知道 data_vendors 和 tool_vendors 的优先级关系。
+- [ ] 我知道 max_debate_rounds、max_risk_discuss_rounds 和 max_recur_limit 各自控制什么。
+- [ ] 我知道回退链不是“任何失败都会自动切换”。
+- [ ] 我知道一次实验最好只改一个变量。
 
 ---
 

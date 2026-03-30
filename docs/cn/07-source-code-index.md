@@ -131,6 +131,13 @@
 
 如果你准备新增 Agent 或工具，这个目录通常比 Agent 本身更早要看。
 
+其中最值得优先扫一眼的函数有：
+
+1. agent_states.py 里的 AgentState，用来确认状态契约到底有哪些字段。
+2. agent_utils.py 里的 create_msg_delete，用来理解 Analyst 阶段结束后的消息清理策略。
+3. agent_utils.py 里的 build_instrument_context，用来理解为什么 ticker 后缀不能丢。
+4. agent_utils.py 里的 get_language_instruction，用来理解用户可见输出语言如何注入。
+
 ## 数据流层索引
 
 ### 最关键的 3 个文件
@@ -157,6 +164,12 @@
 
 如果你要新增供应商，从 interface.py 开始，比直接看具体实现文件更高效。
 
+读 interface.py 时，建议优先抓住 3 个函数：
+
+1. get_category_for_method：确认某个工具属于哪一类能力。
+2. get_vendor：确认 tool_vendors 如何覆盖 data_vendors。
+3. route_to_vendor：确认主路由、回退链和异常处理逻辑。
+
 ## LLM Client 层索引
 
 | 文件 | 负责什么 |
@@ -169,6 +182,8 @@
 | tradingagents/llm_clients/validators.py | 模型合法性校验 |
 
 如果你只准备切模型配置，不一定要读这些文件；但如果你要接新 Provider，这一层是主战场。
+
+其中 base_client.py 不只是“抽象父类”。它还定义了 normalize_content，这个函数会把部分 provider 返回的内容块压平成纯文本，是多 provider 稳定运行的关键兼容层。
 
 ## CLI 层索引
 
@@ -188,6 +203,8 @@
 | 文件 | 当前作用 |
 | ---- | ---- |
 | tests/test_ticker_symbol_handling.py | 保护 ticker 标准化与交易所后缀保留行为 |
+| tests/test_model_validation.py | 保护模型校验目录与 warning 逻辑 |
+| tests/test_google_api_key.py | 保护 Google Provider 的 api_key 兼容行为 |
 
 当前测试规模不大，所以如果你改的是 graph、provider、dataflow 或 CLI 映射，建议自己主动补验证，而不要依赖现有测试兜底。
 
@@ -195,20 +212,20 @@
 
 ### 目标一：我只想理解主执行链路
 
-1. main.py
-2. tradingagents/graph/trading_graph.py
-3. tradingagents/graph/setup.py
-4. tradingagents/graph/conditional_logic.py
-5. tradingagents/agents/utils/agent_states.py
+1. main.py：先看 graph 如何被创建。
+2. tradingagents/graph/trading_graph.py：重点看初始化和 propagate。
+3. tradingagents/graph/setup.py：重点看 setup_graph。
+4. tradingagents/graph/conditional_logic.py：重点看 should_continue_debate 和 should_continue_risk_analysis。
+5. tradingagents/agents/utils/agent_states.py：重点看状态字段是否与前面流程一一对应。
 
 ### 目标二：我想新增一个 Analyst
 
-1. tradingagents/agents/analysts/market_analyst.py
-2. tradingagents/agents/utils/agent_states.py
-3. tradingagents/graph/setup.py
-4. tradingagents/graph/conditional_logic.py
-5. cli/models.py
-6. cli/main.py
+1. tradingagents/agents/analysts/market_analyst.py：先看节点工厂长什么样。
+2. tradingagents/agents/utils/agent_states.py：确认新报告写到哪里。
+3. tradingagents/graph/setup.py：确认节点如何接入图。
+4. tradingagents/graph/conditional_logic.py：确认何时结束该角色的工具循环。
+5. cli/models.py：确认 CLI 选择项如何暴露。
+6. cli/main.py：确认 ANALYST_MAPPING、REPORT_SECTIONS 和最终展示逻辑。
 
 ### 目标三：我想新增一个数据供应商
 
@@ -240,6 +257,17 @@
 1. 想知道结果怎么出来，就沿着入口到 graph 再到 state 看。
 2. 想知道数据怎么进来，就沿着 Agent 工具到 dataflows.interface 看。
 3. 想知道为什么某个节点停不下来，就直接去 conditional_logic.py 和 setup.py。
+4. 想知道为什么某个 ticker 被改坏了，就去 build_instrument_context 和对应测试看。
+
+## 常见问题到源码路径速查
+
+| 你的问题 | 优先看哪里 |
+| ---- | ---- |
+| 为什么结果目录不是我配置的那个 | trading_graph.py 与 default_config.py |
+| 为什么新 Analyst 在 CLI 里看不到 | cli/models.py 与 cli/main.py |
+| 为什么供应商切换后行为怪异 | dataflows/interface.py 与对应供应商实现 |
+| 为什么模型返回内容格式不稳定 | llm_clients/base_client.py 与具体 provider client |
+| 为什么某个 ticker 后缀被吃掉 | agent_utils.py 与 tests/test_ticker_symbol_handling.py |
 
 ## 关联阅读
 

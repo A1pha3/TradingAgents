@@ -26,6 +26,23 @@
 1. 读者可以按目标阅读，而不是在单篇长文中反复跳转。
 2. 维护者可以独立更新某一个主题，例如配置、扩展、测试，而不必改整份总文档。
 
+## 核心术语速览
+
+如果你是第一次接触这个项目，先记住下面这些术语：
+
+| 术语 | 在本文档体系中的含义 |
+| ---- | ---- |
+| TradingAgentsGraph | 系统统一入口与装配中心 |
+| selected_analysts | Analyst 的启用集合，同时也定义执行顺序 |
+| ToolNode | Analyst 调用外部工具的桥接节点 |
+| data_vendors | 按能力类别配置默认数据供应商 |
+| tool_vendors | 按具体工具覆盖默认供应商 |
+| quick_think_llm | 高频节点使用的模型 |
+| deep_think_llm | 关键仲裁节点使用的模型 |
+| AgentState | 多阶段共享的结构化状态契约 |
+| final_trade_decision | Portfolio Manager 产出的最终决策文本 |
+| eval_results | 当前图执行状态的实际落盘目录 |
+
 ## 如何阅读
 
 ### 路径一：第一次上手
@@ -70,7 +87,7 @@
 3. 说清楚 Agent、Graph、LLM Provider、Dataflow 之间的职责边界。
 4. 根据自己的研究目标调整模型、辩论轮数和数据供应商。
 5. 为系统新增一个角色、一个数据源或一段新工作流。
-6. 识别当前项目仍属于研究框架的工程边界，而不是误判为生产交易平台。
+6. 识别当前项目仍属于研究框架的工程边界，并知道如何用日志、测试和状态字段验证这一判断。
 
 ## 推荐阅读顺序
 
@@ -92,6 +109,23 @@ flowchart TD
     H --> I[08 贡献指南]
 ```
 
+## 快速排查与导航
+
+如果你不是来“按顺序学习”，而是因为某个具体问题来查文档，可以直接跳：
+
+1. 找不到结果文件，或对 results_dir 与 eval_results 感到困惑：读 [06-testing-and-evolution.md](06-testing-and-evolution.md)。
+2. 想新增一个 Analyst、Provider 或数据源：读 [05-extension-guide.md](05-extension-guide.md)。
+3. 改了代码后图不收敛，或不知道问题在哪一层：先读 [03-architecture.md](03-architecture.md)，再查 [07-source-code-index.md](07-source-code-index.md)。
+4. 想判断一次改动是否足够安全：读 [08-contributor-guide.md](08-contributor-guide.md)。
+
+### 路径之间如何衔接
+
+上面的主干图只展示默认阅读顺序。实际使用时，经常会出现 3 类跨路径跳转：
+
+1. 你在 [01-quickstart.md](01-quickstart.md) 跑通后找不到结果文件，需要立刻跳到 [04-usage-and-configuration.md](04-usage-and-configuration.md) 和 [06-testing-and-evolution.md](06-testing-and-evolution.md) 看结果目录与排查策略。
+2. 你在 [02-principles-and-workflow.md](02-principles-and-workflow.md) 理解了流程哲学后，往往需要回到 [04-usage-and-configuration.md](04-usage-and-configuration.md) 才能把“为什么这样设计”转成“该怎么调参”。
+3. 你在 [05-extension-guide.md](05-extension-guide.md) 开始扩展新能力时，需要同步查阅 [07-source-code-index.md](07-source-code-index.md) 的源码入口，以及 [08-contributor-guide.md](08-contributor-guide.md) 的验证要求。
+
 ## 这组文档的写作原则
 
 为了保证可读性和可维护性，本文档组遵循以下原则：
@@ -106,10 +140,18 @@ flowchart TD
 
 如果后续仓库结构变更，建议优先同步以下几篇文档：
 
-1. 新增入口或 CLI 变更时，同步 01 和 04。
-2. 图结构或状态模型变更时，同步 02、03、05。
-3. 新增核心源码入口或模块分层变化时，同步 07。
-4. 测试增强或工程规范变化时，同步 06 和 08。
+1. 新增入口或 CLI 变更时，同步 01 和 04。影响范围通常是“首次跑通路径”和“配置解释路径”。
+2. 图结构或状态模型变更时，同步 02、03、05。影响范围通常是“系统原理”“架构图”“扩展步骤”三条线。
+3. 新增核心源码入口或模块分层变化时，同步 07。影响范围通常是“源码导航”和“调试入口”。
+4. 测试增强、结果目录、验证流程或工程规范变化时，同步 06 和 08。影响范围通常是“可信度判断”和“贡献者工作流”。
+
+## 使用建议
+
+如果你只打算读一遍文档，建议把这组文档当成一个三段式闭环：
+
+1. 先用 [01-quickstart.md](01-quickstart.md) 跑通最小路径，建立结果直觉。
+2. 再用 [02-principles-and-workflow.md](02-principles-and-workflow.md) 和 [03-architecture.md](03-architecture.md) 建立“为什么这样设计”的因果链。
+3. 最后用 [04-usage-and-configuration.md](04-usage-and-configuration.md) 到 [08-contributor-guide.md](08-contributor-guide.md) 把使用、扩展、验证和协作串成长期工作流。
 
 ---
 
