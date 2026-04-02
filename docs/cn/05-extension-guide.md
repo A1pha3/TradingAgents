@@ -388,7 +388,19 @@ def test_macro_tool_node_contains_expected_tools():
 
 ## 小结
 
-TradingAgents 的扩展能力不错，但前提是你尊重它现有的边界设计。最好的扩展方式不是“哪能跑通改哪”，而是沿着状态、节点、边界层和 CLI 暴露四条主线做闭环修改。
+TradingAgents 的扩展能力不错，但前提是你尊重它现有的边界设计。最好的扩展方式不是”哪能跑通改哪”，而是沿着状态、节点、边界层和 CLI 暴露四条主线做闭环修改。
+
+## 自测问题
+
+1. 如果你在新增 Analyst 时忘了在 `propagation.py` 的 `create_initial_state` 中添加对应字段的空字符串初始化，会发生什么？
+2. `output_language` 的 `get_language_instruction()` 在 English 时返回空字符串——为什么要这样设计而不是返回一个空格？
+3. 新增 Provider 时，如果你的客户端没有在 `factory.py` 中注册，系统会在什么时候报错？是初始化阶段还是运行阶段？
+4. 为什么记忆系统的接口兼容性（`add_situations` 和 `get_memories` 的签名）比内部实现更重要？
+
+## 练习题
+
+1. 按照本文的 Macro Analyst 模板，创建一个 `sentiment_analyst.py`（与现有 `social_media_analyst` 类似但专注于情绪量化），列出你需要修改的所有文件清单。
+2. 编写一个测试用例，验证当你同时传入 `google_thinking_level` 和 `openai_reasoning_effort` 时，只有与当前 `llm_provider` 匹配的参数会生效。
 
 ---
 

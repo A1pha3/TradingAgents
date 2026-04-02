@@ -362,6 +362,18 @@ pytest tests/test_graph_convergence.py::TestGraphConvergence::test_graph_compile
 
 TradingAgents 的潜力来自它清晰的结构，而不是已经完成的工程度。理解这一点，才能既看到它的价值，也不误判它的成熟度。
 
+## 自测问题
+
+1. 为什么说研究型框架比生产系统更怕"静默错误"？举一个具体的例子说明。
+2. 如果你只有时间写一个测试，应该写哪一个？为什么？
+3. `route_to_vendor` 的回退逻辑只对 `AlphaVantageRateLimitError` 触发——如果 yfinance 也出现网络超时，系统会怎么表现？
+4. `normalize_content` 把 `type: "reasoning"` 的块丢弃了——这在什么场景下可能导致信息丢失？
+
+## 练习题
+
+1. 为 `FinancialSituationMemory.get_memories` 编写一个测试，验证当 `n_matches=2` 但记忆库中只有 1 条记录时，不会抛出异常而是正常返回 1 条结果。
+2. 设计一个方案，在不修改 `route_to_vendor` 的情况下，让所有供应商的网络超时都能触发回退（提示：考虑在哪里捕获异常）。
+
 ---
 
 __文档元信息__

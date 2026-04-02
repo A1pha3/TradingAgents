@@ -274,6 +274,13 @@
 2. 如果你准备真正动手扩展，接着读 [05-extension-guide.md](05-extension-guide.md)。
 3. 如果你更喜欢一次性阅读全貌，可以读 [tradingagents-complete-guide.md](tradingagents-complete-guide.md)。
 
+## 源码导航自测
+
+1. 打开 `tradingagents/graph/conditional_logic.py`，确认 `should_continue_debate` 中的乘数是 `2 * max_debate_rounds`，而 `should_continue_risk_analysis` 中的乘数是 `3 * max_risk_discuss_rounds`。为什么不同？
+2. 打开 `tradingagents/llm_clients/factory.py`，列出哪些 provider 共享 `OpenAIClient`，哪些使用独立客户端。如果你要新增一个兼容 OpenAI Chat API 的供应商，最少需要改几行代码？
+3. 打开 `tradingagents/dataflows/interface.py`，找到 `VENDOR_METHODS` 字典。如果你要新增一个供应商（如 Finnhub），你需要在这个字典里注册几个方法？
+4. 阅读 `tradingagents/agents/utils/agent_utils.py` 中的 `create_msg_delete`，解释为什么它返回的是 `RemoveMessage` 列表加上一个 `HumanMessage`，而不是只返回空列表。
+
 ---
 
 __文档元信息__

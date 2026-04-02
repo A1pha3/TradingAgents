@@ -408,6 +408,18 @@ TradingAgents 的架构强项，不是把一切做到最轻量，而是把复杂
 2. 再看 trading_graph.py 和 setup.py，理解整体装配与流程顺序。
 3. 然后看 agent_states.py、interface.py、factory.py，理解系统边界。
 
+## 自测问题
+
+1. `normalize_content` 解决的是什么问题？如果不做归一化，下游 Agent 会面对什么困难？
+2. 为什么 Bull 和 Bear Researcher 使用 `quick_think_llm`，而 Research Manager 和 Portfolio Manager 使用 `deep_think_llm`？这个分配背后的成本逻辑是什么？
+3. `FinancialSituationMemory` 的 5 个实例分别被谁读取、被谁写入？如果你要替换成向量检索，需要保证哪两个接口不变？
+4. `_log_state` 写入的路径是 `eval_results/{ticker}/...`，而不是配置中的 `results_dir`。这个不一致会导致什么实际问题？
+
+## 练习题
+
+1. 打开 `tradingagents/graph/trading_graph.py`，找到 `_create_tool_nodes` 方法，确认每类 Analyst 只能看到与自己角色相关的工具。如果你要给 Market Analyst 新增一个工具，应该在哪里添加？
+2. 阅读 `propagation.py` 中的 `create_initial_state`，列出所有初始化为空字符串的字段。如果一个 Analyst 被禁用，它对应的报告字段会保持为空——这个设计有什么好处和潜在问题？
+
 ---
 
 __文档元信息__
