@@ -1,7 +1,7 @@
 ---
 难度：⭐⭐⭐
 类型：核心概念
-预计时间：35 分钟
+预计时间：50 分钟
 前置知识：
   - [01-quickstart.md](01-quickstart.md)
 后续推荐：
@@ -21,8 +21,9 @@
 
 1. CLI 与 Python API 分别适合什么场景。
 2. 默认配置里的关键字段各自影响什么。
-3. 如何调整模型、数据供应商和辩论轮数。
-4. 实验时应该如何做对比，而不是盲目堆复杂度。
+3. 如何调整模型、数据供应商、输出语言和辩论轮数。
+4. 如何配置后端地址以适配 OpenRouter、Ollama 等非官方端点。
+5. 实验时应该如何做对比，而不是盲目堆复杂度。
 
 ## 使用方式概览
 
@@ -69,9 +70,18 @@ DEFAULT_CONFIG = {
     "llm_provider": "openai",
     "deep_think_llm": "gpt-5.4",
     "quick_think_llm": "gpt-5.4-mini",
+    "backend_url": "https://api.openai.com/v1",
+    # Provider 专属参数（仅对应 Provider 被选中时生效）
+    "google_thinking_level": None,      # 可选: "high", "minimal" 等
+    "openai_reasoning_effort": None,    # 可选: "medium", "high", "low"
+    "anthropic_effort": None,           # 可选: "high", "medium", "low"
+    # 输出语言（仅影响用户可见输出，内部辩论始终英文）
+    "output_language": "English",
+    # 辩论与讨论设置
     "max_debate_rounds": 1,
     "max_risk_discuss_rounds": 1,
     "max_recur_limit": 100,
+    # 数据供应商配置
     "data_vendors": {
         "core_stock_apis": "yfinance",
         "technical_indicators": "yfinance",
@@ -81,6 +91,31 @@ DEFAULT_CONFIG = {
     "tool_vendors": {},
 }
 ```
+
+### backend_url
+
+控制 LLM API 的后端地址。默认值为 `https://api.openai.com/v1`，即 OpenAI 官方端点。当你使用非官方端点时需要修改此字段。
+
+常见的替代配置：
+
+| 场景 | backend_url 值 | 说明 |
+| ---- | ---- | ---- |
+| OpenAI 官方 | `https://api.openai.com/v1` | 默认值 |
+| OpenRouter | `https://openrouter.ai/api/v1` | 聚合多家模型供应商 |
+| Ollama 本地 | `http://localhost:11434/v1` | 零成本本地推理 |
+| 自定义代理 | `https://your-proxy.example.com/v1` | 自建代理或企业网关 |
+
+```python
+# OpenRouter 示例
+config["llm_provider"] = "openrouter"
+config["backend_url"] = "https://openrouter.ai/api/v1"
+
+# Ollama 本地示例
+config["llm_provider"] = "ollama"
+config["backend_url"] = "http://localhost:11434/v1"
+```
+
+实现原理：`backend_url` 在 `TradingAgentsGraph` 构造函数中传递给 `create_llm_client()`，作为 `base_url` 参数注入到底层 LLM 客户端。
 
 ### llm_provider
 
@@ -113,6 +148,54 @@ max_recur_limit 对应图执行时的 recursion_limit。它的作用不是改善
 1. 太低，复杂流程可能还没走完整就被截断。
 2. 太高，异常条件边或工具循环会更难被及时发现。
 3. 默认值 100 对当前主流程是偏保守的安全上限，通常不需要在首次使用时调整。
+
+### output_language
+
+控制用户可见输出的语言。默认值为 `"English"`。
+
+```python
+config["output_language"] = "中文"  # 或 "日本語"、"Français" 等
+```
+
+需要注意以下几点：
+
+1. **只影响用户可见输出**。此配置作用于 Analyst 报告和 Portfolio Manager 最终决策，使这些内容以指定语言呈现。
+2. **内部辩论始终使用英文**。Research Debate（Bull/Bear 辩论）和 Risk Debate（风险讨论）不受此配置影响，始终保持英文以保证推理质量。
+3. **无额外 token 开销（默认情况）**。实现原理是 `get_language_instruction()` 函数在 `output_language` 为 `"English"` 时返回空字符串，不消耗任何额外 token；仅在设置为非 English 时追加 `" Write your entire response in {lang}."` 指令。
+
+具体应用于以下 Agent（源码位置：各 Analyst 和 Portfolio Manager 的 prompt 构造处）：
+
+| Agent | 源码位置 |
+| ---- | ---- |
+| market_analyst | `tradingagents/agents/analysts/market_analyst.py` |
+| social_media_analyst | `tradingagents/agents/analysts/social_media_analyst.py` |
+| news_analyst | `tradingagents/agents/analysts/news_analyst.py` |
+| fundamentals_analyst | `tradingagents/agents/analysts/fundamentals_analyst.py` |
+| portfolio_manager | `tradingagents/agents/managers/portfolio_manager.py` |
+
+### Provider 专属参数
+
+这三个参数分别控制对应 Provider 底层模型的推理深度/思考力度。只有在对应的 `llm_provider` 被选中时才会生效，不影响 Agent 逻辑本身。
+
+```python
+# Google 专用 —— 控制 Gemini 模型的 thinking level
+config["google_thinking_level"] = "high"     # 可选: "high", "minimal" 等
+
+# OpenAI 专用 —— 控制 o 系列模型的 reasoning effort
+config["openai_reasoning_effort"] = "medium" # 可选: "medium", "high", "low"
+
+# Anthropic 专用 —— 控制 Claude 模型的推理力度
+config["anthropic_effort"] = "high"          # 可选: "high", "medium", "low"
+```
+
+默认值均为 `None`，表示不传递额外参数，使用模型自身的默认推理强度。实现原理是 `trading_graph.py` 的 `_get_provider_kwargs()` 方法根据当前 `llm_provider` 读取对应参数，仅在有值时才注入到 LLM 客户端构造函数中。
+
+使用建议：
+
+1. 通常不需要主动设置这些参数，模型默认表现已经足够。
+2. 如果发现推理质量不足，可以尝试调高对应参数（如 `"high"`）。
+3. 如果需要控制成本和延迟，可以尝试调低（如 `"low"` 或 `"minimal"`）。
+4. 一次只调整一个 Provider 的参数，便于对比效果。
 
 ### data_vendors 与 tool_vendors
 
@@ -262,6 +345,122 @@ print(decision)
 
 这个模式比直接修改全局默认配置更稳，因为实验配置的意图更显式。
 
+## Callbacks 回调机制
+
+`TradingAgentsGraph` 构造函数接受一个可选的 `callbacks` 参数，用于注入回调处理器来追踪运行时统计信息。
+
+```python
+from tradingagents.graph.trading_graph import TradingAgentsGraph
+from tradingagents.default_config import DEFAULT_CONFIG
+from cli.stats_handler import StatsCallbackHandler
+
+config = DEFAULT_CONFIG.copy()
+
+# 创建统计回调处理器
+stats_handler = StatsCallbackHandler()
+
+graph = TradingAgentsGraph(
+    config=config,
+    callbacks=[stats_handler],  # 传入回调处理器
+)
+
+final_state, decision = graph.propagate("AAPL", "2024-05-10")
+
+# 获取运行统计
+print(stats_handler.get_stats())
+# {'llm_calls': 42, 'tool_calls': 15, 'tokens_in': 85000, 'tokens_out': 12000}
+```
+
+`StatsCallbackHandler`（源码：`cli/stats_handler.py`）继承自 LangChain 的 `BaseCallbackHandler`，追踪以下指标：
+
+| 指标 | 说明 |
+| ---- | ---- |
+| `llm_calls` | LLM 调用次数 |
+| `tool_calls` | 工具调用次数 |
+| `tokens_in` | 输入 token 总量 |
+| `tokens_out` | 输出 token 总量 |
+
+使用场景：
+
+1. **成本估算**：通过 token 统计估算每次分析的实际成本。
+2. **性能分析**：通过调用次数定位瓶颈节点。
+3. **实验对比**：不同配置下的 token 消耗差异。
+
+注意事项：callbacks 被注入到 LLM 客户端层面（构造函数中传递给 `create_llm_client()`），因此能捕获所有 LLM 交互。CLI 模式下默认会启用 `StatsCallbackHandler`。
+
+## 配置场景速查
+
+以下是针对不同使用目标的具体配置模板，可直接复制使用。
+
+### 场景一：本地 Ollama 零成本研究
+
+适合没有 API 预算、希望本地体验完整流程的用户。
+
+```python
+from tradingagents.default_config import DEFAULT_CONFIG
+
+config = DEFAULT_CONFIG.copy()
+config["llm_provider"] = "ollama"
+config["backend_url"] = "http://localhost:11434/v1"
+config["quick_think_llm"] = "llama3"
+config["deep_think_llm"] = "llama3"
+config["max_debate_rounds"] = 1
+config["max_risk_discuss_rounds"] = 1
+```
+
+前置条件：本地已安装并运行 Ollama，且已拉取对应模型。注意本地模型的推理质量通常弱于云端大模型，建议降低辩论轮数以减少幻觉累积。
+
+### 场景二：多语言报告（中文输出）
+
+适合需要中文研究报告的用户。
+
+```python
+from tradingagents.default_config import DEFAULT_CONFIG
+
+config = DEFAULT_CONFIG.copy()
+config["output_language"] = "中文"
+# 其他配置按需调整
+```
+
+要点：仅修改 `output_language` 一个字段即可。Analyst 报告和最终决策会以中文输出，但内部 Bull/Bear 辩论和 Risk 讨论仍然使用英文，确保推理链路不受语言切换影响。
+
+### 场景三：OpenRouter 混合模型
+
+适合想组合不同供应商模型、按节点类型分配的用户。
+
+```python
+from tradingagents.default_config import DEFAULT_CONFIG
+
+config = DEFAULT_CONFIG.copy()
+config["llm_provider"] = "openrouter"
+config["backend_url"] = "https://openrouter.ai/api/v1"
+config["quick_think_llm"] = "meta-llama/llama-3-70b-instruct"
+config["deep_think_llm"] = "anthropic/claude-sonnet-4-20250514"
+config["max_debate_rounds"] = 2
+config["max_risk_discuss_rounds"] = 2
+```
+
+要点：`llm_provider` 设为 `openrouter`，`backend_url` 指向 OpenRouter 端点，模型名称使用 OpenRouter 格式（`供应商/模型名`）。
+
+### 场景四：高强度推理模式
+
+适合追求最高推理质量、对成本不敏感的用户。
+
+```python
+from tradingagents.default_config import DEFAULT_CONFIG
+
+config = DEFAULT_CONFIG.copy()
+config["llm_provider"] = "openai"
+config["deep_think_llm"] = "gpt-5.4"
+config["quick_think_llm"] = "gpt-5.4"
+config["openai_reasoning_effort"] = "high"
+config["max_debate_rounds"] = 3
+config["max_risk_discuss_rounds"] = 3
+config["max_recur_limit"] = 200
+```
+
+要点：所有节点都使用最强模型，推理力度调至最高，辩论轮数增加以获得更充分的讨论。注意 token 消耗会显著增加，建议配合 `StatsCallbackHandler` 监控成本。
+
 ## 使用中的常见误区
 
 1. 把研究深度当成装饰性选项。
@@ -297,12 +496,16 @@ print(decision)
 ## 自测检查清单
 
 - [ ] 我知道 llm_provider、quick_think_llm 和 deep_think_llm 分别解决什么问题。
+- [ ] 我知道 backend_url 的作用，以及如何配置 OpenRouter 或 Ollama。
+- [ ] 我知道 output_language 只影响用户可见输出，不影响内部辩论。
+- [ ] 我知道 Provider 专属参数（google_thinking_level、openai_reasoning_effort、anthropic_effort）各自对应哪个供应商。
 - [ ] 我知道 data_vendors 和 tool_vendors 的优先级关系。
 - [ ] 我知道 max_debate_rounds、max_risk_discuss_rounds 和 max_recur_limit 各自控制什么。
-- [ ] 我知道回退链不是“任何失败都会自动切换”。
+- [ ] 我知道回退链不是”任何失败都会自动切换”。
 - [ ] 我知道一次实验最好只改一个变量。
+- [ ] 我知道如何使用 callbacks 追踪 LLM 调用次数和 token 消耗。
 
 ---
 
 __文档元信息__
-难度：⭐⭐⭐ | 类型：核心概念 | 更新日期：2026-03-29 | 预计阅读时间：35 分钟
+难度：⭐⭐⭐ | 类型：核心概念 | 更新日期：2026-04-01 | 预计阅读时间：40 分钟

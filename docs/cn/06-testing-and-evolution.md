@@ -1,7 +1,7 @@
 ---
 难度：⭐⭐⭐
 类型：工程实践
-预计时间：30 分钟
+预计时间：45 分钟
 前置知识：
   - [03-architecture.md](03-architecture.md)
 后续推荐：
@@ -32,7 +32,15 @@
 2. 模型名校验与未知模型 warning 行为。
 3. Google Provider 的 api_key 参数兼容性。
 
-这说明当前测试更像“关键行为防回归保护”，而不是完整系统验证矩阵。
+这说明当前测试更像”关键行为防回归保护”，而不是完整系统验证矩阵。
+
+### 现有测试详解
+
+| 测试文件 | 保护的行为 | 为什么需要保护 |
+| ---- | ---- | ---- |
+| `test_ticker_symbol_handling.py` | `build_instrument_context` 保留交易所后缀（`.TO`, `.T`, `.HK` 等） | ticker 是所有工具调用的基础输入，后缀丢失会导致查错数据 |
+| `test_model_validation.py` | 未知模型名触发 `RuntimeWarning` | 静默接受未知模型会导致运行时不可预测行为 |
+| `test_google_api_key.py` | Google Provider 的 `api_key` 参数兼容性 | Google SDK 的参数名与其他 Provider 不同，容易遗漏 |
 
 ## 当前高风险盲区
 
@@ -75,7 +83,195 @@
 
 这个问题应按阻断级工程一致性缺陷看待，因为结果目录是很多后续分析脚本和复盘工具的入口。
 
-## 推荐的测试建设优先级
+## 推荐的最小可行测试集（MVP）
+
+下面是 4 个可以直接使用的测试模板，覆盖了"如果你只能写 4 个测试，应该写什么"。
+
+### 测试一：Graph 编译与收敛测试
+
+这是最高优先级。只要主流程不能稳定走到 `final_trade_decision`，其他局部测试再漂亮也不能代表系统可用。
+
+```python
+# tests/test_graph_convergence.py
+"""验证 Graph 能完整走到 final_trade_decision"""
+import unittest
+from unittest.mock import MagicMock, patch
+
+
+class TestGraphConvergence(unittest.TestCase):
+    """验证 Graph 编译和收敛的基本能力"""
+
+    def test_graph_compiles_with_default_analysts(self):
+        """默认 4 个 Analyst 时图能编译"""
+        from tradingagents.graph.trading_graph import TradingAgentsGraph
+        from tradingagents.default_config import DEFAULT_CONFIG
+
+        ta = TradingAgentsGraph(
+            selected_analysts=["market", "social", "news", "fundamentals"],
+            config=DEFAULT_CONFIG.copy(),
+        )
+        self.assertIsNotNone(ta.graph)
+
+    def test_graph_compiles_with_single_analyst(self):
+        """只选 1 个 Analyst 时图也能编译"""
+        from tradingagents.graph.trading_graph import TradingAgentsGraph
+        from tradingagents.default_config import DEFAULT_CONFIG
+
+        ta = TradingAgentsGraph(
+            selected_analysts=["market"],
+            config=DEFAULT_CONFIG.copy(),
+        )
+        self.assertIsNotNone(ta.graph)
+
+    def test_graph_rejects_empty_analysts(self):
+        """空 Analyst 列表应该报错"""
+        from tradingagents.graph.trading_graph import TradingAgentsGraph
+        from tradingagents.default_config import DEFAULT_CONFIG
+
+        with self.assertRaises(ValueError):
+            TradingAgentsGraph(
+                selected_analysts=[],
+                config=DEFAULT_CONFIG.copy(),
+            )
+```
+
+### 测试二：route_to_vendor 回退测试
+
+验证供应商回退逻辑在 Alpha Vantage 限流时能正确切换到 yfinance。
+
+```python
+# tests/test_vendor_fallback.py
+"""验证供应商回退逻辑"""
+import unittest
+
+
+class TestVendorFallback(unittest.TestCase):
+
+    def test_unknown_method_raises(self):
+        """不存在的工具方法应该抛出 ValueError"""
+        from tradingagents.dataflows.interface import route_to_vendor
+        with self.assertRaises(ValueError):
+            route_to_vendor("nonexistent_method")
+
+    def test_get_vendor_falls_back_to_category(self):
+        """tool_vendors 未覆盖时回退到 data_vendors"""
+        from tradingagents.dataflows.interface import get_vendor
+        # 如果没有 tool_vendors 覆盖，应返回 data_vendors 的值
+        vendor = get_vendor("core_stock_apis", "get_stock_data")
+        self.assertIn(vendor, ["yfinance", "alpha_vantage", "default"])
+```
+
+### 测试三：normalize_content 测试
+
+验证多 Provider 返回格式能被统一压平为纯文本。
+
+```python
+# tests/test_normalize_content.py
+"""验证多 provider 内容归一化"""
+import unittest
+from unittest.mock import MagicMock
+
+
+class TestNormalizeContent(unittest.TestCase):
+
+    def test_list_content_normalized_to_string(self):
+        """列表格式内容被压平为纯文本"""
+        from tradingagents.llm_clients.base_client import normalize_content
+
+        mock_response = MagicMock()
+        mock_response.content = [
+            {"type": "reasoning", "text": "thinking..."},
+            {"type": "text", "text": "actual output"},
+        ]
+        result = normalize_content(mock_response)
+        self.assertEqual(result.content, "actual output")
+
+    def test_string_content_unchanged(self):
+        """纯文本内容不做任何处理"""
+        from tradingagents.llm_clients.base_client import normalize_content
+
+        mock_response = MagicMock()
+        mock_response.content = "plain text"
+        result = normalize_content(mock_response)
+        self.assertEqual(result.content, "plain text")
+
+    def test_empty_list_becomes_empty_string(self):
+        """空列表变成空字符串"""
+        from tradingagents.llm_clients.base_client import normalize_content
+
+        mock_response = MagicMock()
+        mock_response.content = []
+        result = normalize_content(mock_response)
+        self.assertEqual(result.content, "")
+```
+
+### 测试四：Propagation 初始状态测试
+
+验证初始状态结构完整，所有必需字段都存在。
+
+```python
+# tests/test_propagation.py
+"""验证初始状态结构完整"""
+import unittest
+
+
+class TestPropagation(unittest.TestCase):
+
+    def test_initial_state_has_all_required_fields(self):
+        from tradingagents.graph.propagation import Propagator
+
+        p = Propagator()
+        state = p.create_initial_state("AAPL", "2024-05-10")
+
+        # 核心标识字段
+        self.assertEqual(state["company_of_interest"], "AAPL")
+        self.assertEqual(state["trade_date"], "2024-05-10")
+
+        # Analyst 报告字段
+        for field in ["market_report", "sentiment_report",
+                       "news_report", "fundamentals_report"]:
+            self.assertIn(field, state)
+            self.assertEqual(state[field], "")
+
+        # 辩论状态字段
+        self.assertIn("investment_debate_state", state)
+        self.assertEqual(state["investment_debate_state"]["count"], 0)
+        self.assertIn("risk_debate_state", state)
+        self.assertEqual(state["risk_debate_state"]["count"], 0)
+
+    def test_initial_state_has_messages(self):
+        from tradingagents.graph.propagation import Propagator
+
+        p = Propagator()
+        state = p.create_initial_state("AAPL", "2024-05-10")
+        self.assertIn("messages", state)
+        self.assertGreater(len(state["messages"]), 0)
+```
+
+### pytest 配置建议
+
+在 `pyproject.toml` 中添加：
+
+```toml
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+python_functions = "test_*"
+addopts = "-v --tb=short"
+```
+
+运行方式：
+
+```bash
+# 运行全部测试
+pytest
+
+# 运行单个测试文件
+pytest tests/test_graph_convergence.py
+
+# 运行单个测试用例
+pytest tests/test_graph_convergence.py::TestGraphConvergence::test_graph_compiles_with_default_analysts
+```
 
 ### 第一优先级：状态与图收敛测试
 
@@ -169,4 +365,4 @@ TradingAgents 的潜力来自它清晰的结构，而不是已经完成的工程
 ---
 
 __文档元信息__
-难度：⭐⭐⭐ | 类型：工程实践 | 更新日期：2026-03-29 | 预计阅读时间：30 分钟
+难度：⭐⭐⭐ | 类型：工程实践 | 更新日期：2026-04-01 | 预计阅读时间：45 分钟

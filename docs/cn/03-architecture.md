@@ -1,7 +1,7 @@
 ---
 难度：⭐⭐⭐⭐
 类型：专家设计
-预计时间：40 分钟
+预计时间：55 分钟
 前置知识：
   - [02-principles-and-workflow.md](02-principles-and-workflow.md)
 后续推荐：
@@ -65,9 +65,17 @@ flowchart TD
 
 ## 目录分层
 
-从职责出发，整个项目大致可以理解为 5 层。
+从职责出发，整个项目可以理解为 5 层。每一层有明确的职责边界和依赖方向：
 
-这样分层，不只是为了“目录看起来整齐”，而是为了控制 3 类最容易失控的耦合：
+```mermaid
+flowchart TD
+    L1[第一层：入口层<br>main.py / cli.main] --> L2[第二层：图编排层<br>tradingagents/graph/]
+    L2 --> L3[第三层：Agent 角色层<br>tradingagents/agents/]
+    L3 --> L4[第四层：能力抽象层<br>llm_clients/ + dataflows/]
+    L4 --> L5[第五层：表现层与验证层<br>cli/ + tests/ + docs/]
+```
+
+这样分层，不只是为了”目录看起来整齐”，而是为了控制 3 类最容易失控的耦合：
 
 1. 把角色逻辑和流程控制拆开，避免 Agent 文件里充满图跳转判断。
 2. 把外部供应商差异收敛到边界层，避免上层代码到处写 provider 分支。
@@ -116,7 +124,7 @@ flowchart TD
 5. risk_mgmt：激进、保守、中立三种风险视角。
 6. utils：状态定义、工具桥接、记忆系统。
 
-之所以不是简单地分成“agents”和“infrastructure”两层，是因为这个项目有明确的角色治理结构。Analyst、Researcher、Trader、Manager、Risk Mgmt 分成独立子目录，能让“角色职责”和“执行阶段”形成一一对应的阅读与扩展入口。对研究型框架来说，这比一个平铺目录更容易追踪责任边界。
+之所以不是粗略地分成”agents”和”infrastructure”两层，是因为这个项目有明确的角色治理结构。Analyst、Researcher、Trader、Manager、Risk Mgmt 分成独立子目录，能让“角色职责”和“执行阶段”形成一一对应的阅读与扩展入口。对研究型框架来说，这比一个平铺目录更容易追踪责任边界。
 
 ### 能力抽象层
 
@@ -225,7 +233,126 @@ llm_clients/factory.py 把不同模型供应商统一抽象到 create_llm_client
 
 特别重要的一点是，系统会对部分 provider 的返回内容做 normalize_content 归一化。这是多 provider 架构能稳定运行的关键前提之一。
 
-更具体地说，normalize_content 是定义在 [tradingagents/llm_clients/base_client.py](../../tradingagents/llm_clients/base_client.py) 中的辅助函数。它的职责不是“让文本更好看”，而是把不同 provider 返回的内容块压平成统一文本，避免下游节点为了 OpenAI、Google、Anthropic 分别写处理分支。
+### normalize_content 的精确实现
+
+`normalize_content` 定义在 [tradingagents/llm_clients/base_client.py](../../tradingagents/llm_clients/base_client.py) 中。它解决的问题非常具体：
+
+**问题**：OpenAI Responses API 和 Google Gemini 3 返回的 `response.content` 不是字符串，而是由多个类型化内容块组成的列表。例如：
+
+```python
+# OpenAI Responses API 的返回格式
+[
+    {“type”: “reasoning”, “text”: “思考过程...”},
+    {“type”: “text”, “text”: “实际输出文本”}
+]
+
+# 普通 OpenAI Chat API 的返回格式
+“纯文本字符串”
+```
+
+**实现逻辑**：
+
+1. 检查 `response.content` 是否为列表（`isinstance(content, list)`）
+2. 如果是列表：提取所有 `type == “text”` 的块，拼接成纯文本字符串
+3. 如果不是列表（已是字符串）：不做任何处理
+4. 将结果写回 `response.content`，返回原 response 对象
+
+**意义**：保证所有下游 Agent 节点始终面对 `str` 类型的 `response.content`，不需要为不同 Provider 写分支逻辑。
+
+### Provider 分组策略
+
+factory.py 中的分组逻辑是：
+
+| Provider | 使用客户端 | 共享原因 |
+| ---- | ---- | ---- |
+| openai | OpenAIClient | 原生 |
+| ollama | OpenAIClient | 兼容 OpenAI Chat API |
+| openrouter | OpenAIClient | 兼容 OpenAI Chat API |
+| xai | OpenAIClient | 兼容 OpenAI Chat API |
+| anthropic | AnthropicClient | 独立 SDK |
+| google | GoogleClient | 独立 SDK |
+
+这意味着 6 种 Provider 仅需要 3 种客户端实现，显著降低了维护成本。
+
+### Provider 专属参数传递
+
+TradingAgentsGraph 的 `_get_provider_kwargs()` 方法会根据当前 `llm_provider` 提取对应参数：
+
+| Provider | 配置键 | 作用 |
+| ---- | ---- | ---- |
+| google | `google_thinking_level` | 控制思考深度（如 “high”, “minimal”） |
+| openai | `openai_reasoning_effort` | 控制推理力度（如 “medium”, “high”, “low”） |
+| anthropic | `anthropic_effort` | 控制输出努力级别（如 “high”, “medium”, “low”） |
+
+这些参数在配置层声明，在初始化时提取，在客户端构造时注入。Agent 层完全不感知这些差异。
+
+## 信号处理模块
+
+SignalProcessor 定义在 [tradingagents/graph/signal_processing.py](../../tradingagents/graph/signal_processing.py)，是 `propagate()` 返回值的生成器。
+
+**输入**：Portfolio Manager 的完整决策文本（可能包含 Rating、Executive Summary、Investment Thesis 等）。
+
+**处理**：使用 `quick_thinking_llm` 调用一个精简 Prompt：
+
+```text
+Extract the rating as exactly one of: BUY, OVERWEIGHT, HOLD, UNDERWEIGHT, SELL.
+Output only the single rating word, nothing else.
+```
+
+**输出**：单个评级词（如 `”BUY”` 或 `”SELL”`）。
+
+**`propagate()` 的返回值**：
+```python
+return final_state, self.process_signal(final_state[“final_trade_decision”])
+```
+
+因此 `decision` 是精炼的单字信号，`final_state[“final_trade_decision”]` 是完整分析报告。两者配合使用：前者用于程序化消费，后者用于人类阅读和复盘。
+
+## 记忆系统架构
+
+### 核心类：FinancialSituationMemory
+
+定义在 [tradingagents/agents/utils/memory.py](../../tradingagents/agents/utils/memory.py)，基于 `rank_bm25` 库的 `BM25Okapi` 算法。
+
+**数据结构**：
+- `documents: List[str]`：存储历史市场状况描述
+- `recommendations: List[str]`：存储对应的反思/建议
+- `bm25: BM25Okapi`：基于 documents 构建的索引
+
+**分词策略**：使用 `re.findall(r'\b\w+\b', text.lower())`，简单正则提取单词。不依赖外部分词库或 Embedding 服务。
+
+**关键方法**：
+
+| 方法 | 输入 | 输出 | 调用方 |
+| ---- | ---- | ---- | ---- |
+| `add_situations([(situation, recommendation)])` | 情况-建议对列表 | 更新内部索引 | Reflector |
+| `get_memories(current_situation, n_matches=2)` | 当前状况 | top-n 匹配记录 | Bull/Bear Researcher, Research Manager, Trader, Portfolio Manager |
+
+**5 个独立记忆实例**：
+
+| 实例名 | 读取方 | 写入方 |
+| ---- | ---- | ---- |
+| `bull_memory` | Bull Researcher | Reflector.reflect_bull_researcher |
+| `bear_memory` | Bear Researcher | Reflector.reflect_bear_researcher |
+| `trader_memory` | Trader | Reflector.reflect_trader |
+| `invest_judge_memory` | Research Manager | Reflector.reflect_invest_judge |
+| `portfolio_manager_memory` | Portfolio Manager | Reflector.reflect_portfolio_manager |
+
+### 反思流程（Reflector）
+
+定义在 [tradingagents/graph/reflection.py](../../tradingagents/graph/reflection.py)。`reflect_and_remember(returns_losses)` 被调用时：
+
+1. **提取当前状况**：拼接 4 份 Analyst 报告（market_report + sentiment_report + news_report + fundamentals_report）
+2. **逐角色反思**：对每个角色，用 `quick_thinking_llm` 和反思 Prompt 分析决策质量
+3. **写入记忆**：将 `(当前状况, 反思结果)` 写入对应角色的记忆实例
+
+反思 Prompt 包含 4 个步骤：
+1. **Reasoning**：判断决策是否正确（正确 = 收益增加），分析各因素权重
+2. **Improvement**：对错误决策提出改进建议
+3. **Summary**：总结经验教训，建立跨场景联系
+4. **Query**：提炼成不超过 1000 token 的精炼摘要
+
+记忆在后续运行时被读取：角色通过 `memory.get_memories(curr_situation, n_matches=2)` 检索最相似的 2 个历史场景，将反思结论注入分析上下文。
 
 ## 日志、结果与反馈回路
 
@@ -284,4 +411,4 @@ TradingAgents 的架构强项，不是把一切做到最轻量，而是把复杂
 ---
 
 __文档元信息__
-难度：⭐⭐⭐⭐ | 类型：专家设计 | 更新日期：2026-03-29 | 预计阅读时间：40 分钟
+难度：⭐⭐⭐⭐ | 类型：专家设计 | 更新日期：2026-04-01 | 预计阅读时间：55 分钟

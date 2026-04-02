@@ -1,7 +1,7 @@
 ---
 难度：⭐
 类型：入门教程
-预计时间：25 分钟
+预计时间：35 分钟
 前置知识：
   - Python 基础
 后续推荐：
@@ -145,6 +145,60 @@ print(final_state["final_trade_decision"])
 
 这个示例会触发完整工作流：Analyst 分析、研究辩论、Trader 规划、风险讨论和最终拍板。
 
+### 使用 Ollama 本地模型（不需要 API Key）
+
+如果你想完全离线运行，或者不想依赖任何云端 API，可以使用 Ollama 作为本地模型后端。完整步骤如下：
+
+1. 安装 Ollama：
+
+```bash
+curl -fsSL https://ollama.com/install.sh | sh
+```
+
+2. 拉取你需要的模型：
+
+```bash
+ollama pull qwen3:latest
+```
+
+3. 确认 Ollama 服务已启动（安装后通常会自动启动，也可以手动执行 `ollama serve`）。
+
+4. 修改配置，指向本地 Ollama：
+
+```python
+from tradingagents.graph.trading_graph import TradingAgentsGraph
+from tradingagents.default_config import DEFAULT_CONFIG
+
+config = DEFAULT_CONFIG.copy()
+config["llm_provider"] = "ollama"
+config["backend_url"] = "http://localhost:11434/v1"
+config["quick_think_llm"] = "qwen3:latest"
+config["deep_think_llm"] = "qwen3:latest"
+
+graph = TradingAgentsGraph(debug=True, config=config)
+final_state, decision = graph.propagate("NVDA", "2024-05-10")
+```
+
+使用 Ollama 时不需要配置任何远程 API Key。需要注意几点：
+
+1. `backend_url` 必须指向 Ollama 的 OpenAI 兼容接口（`http://localhost:11434/v1`），而不是默认的 OpenAI 地址。
+2. 本地模型的推理能力通常弱于云端旗舰模型，可能导致报告质量下降或格式不稳定。建议先用默认参数验证主链路可用，再根据效果决定是否长期使用本地模型。
+3. 如果你的机器显存有限，可以给 `quick_think_llm` 和 `deep_think_llm` 分别指定不同大小的模型。
+
+### 配置中文输出
+
+默认情况下，所有报告和决策输出都是英文。如果你希望分析师报告和最终决策输出为中文，可以通过 `output_language` 参数控制：
+
+```python
+config["output_language"] = "中文"  # 默认为 "English"
+```
+
+这个配置的工作方式需要理解以下几点：
+
+1. `output_language` 通过 `get_language_instruction()` 函数注入到 Analyst 和 Portfolio Manager 的 prompt 中，让这些面向用户的 Agent 用指定语言撰写报告。
+2. 内部的辩论环节（Bull/Bear 研究员、风险讨论等）始终保持英文，以保证推理质量不受语言切换影响。
+3. 支持任意自然语言描述，例如 `"中文"`、`"日本語"`、`"Français"` 均可。
+
 ## 第五步：判断是否跑通
 
 成功运行之后，建议检查下面 4 个信号：
@@ -156,7 +210,108 @@ print(final_state["final_trade_decision"])
 
 这里有一个容易踩坑的工程细节：默认配置里有 results_dir，但当前图执行落盘仍直接写入 eval_results。也就是说，判断“有没有跑通”时，请优先检查 eval_results，而不是只盯着 results_dir。
 
-这 4 个信号组合起来，才算真正跑通，而不是“命令执行过”。
+这 4 个信号组合起来，才算真正跑通，而不是”命令执行过”。
+
+### 运行结果示例与解读
+
+下面是一个成功运行后的典型输出，帮助你理解 `propagate()` 的两个返回值分别代表什么。
+
+`propagate()` 返回一个元组 `(final_state, decision)`：
+
+- `decision` 是一个**单个评级词**，由 `SignalProcessor` 从完整决策文本中提取。它只可能是以下五个值之一：`BUY`、`OVERWEIGHT`、`HOLD`、`UNDERWEIGHT`、`SELL`。这个值适合用于程序化判断和回测信号记录。
+
+- `final_state[“final_trade_decision”]` 是 **Portfolio Manager 的完整决策文本**，包含投资评级、执行摘要、投资论点和风险因素等完整分析内容。
+
+一个典型的运行结果如下：
+
+```text
+# decision（SignalProcessor 提取的单个评级词）
+decision: “BUY”
+
+# final_state[“final_trade_decision”]（Portfolio Manager 的完整决策文本）
+包含以下主要部分：
+  Rating: Buy
+  Executive Summary: NVDA 在 AI 芯片市场持续占据主导地位...
+  Investment Thesis: 数据中心营收同比增长，推理侧需求加速...
+  Risk Factors: 中国市场出口管制风险、竞争加剧...
+  Position Suggestion: 建议配置比例为组合的 5-8%...
+```
+
+此外，`final_state` 中还包含以下中间产物，你可以按需检查每个环节的输出质量：
+
+| 字段 | 含义 |
+| ---- | ---- |
+| `market_report` | Market Analyst 的市场技术面分析报告 |
+| `sentiment_report` | Social Analyst 的社交媒体情绪报告 |
+| `news_report` | News Analyst 的新闻与 insider 交易分析报告 |
+| `fundamentals_report` | Fundamentals Analyst 的基本面分析报告 |
+| `investment_debate_state` | Bull/Bear 辩论的完整历史和 Judge 裁决 |
+| `trader_investment_plan` | Trader 的交易规划 |
+| `risk_debate_state` | Aggressive/Conservative/Neutral 风险讨论的完整历史和 Judge 裁决 |
+| `final_trade_decision` | Portfolio Manager 的最终决策文本 |
+
+### 日志文件结构
+
+成功运行后，系统会在 `eval_results/` 目录下生成 JSON 日志文件，路径格式为：
+
+```text
+eval_results/{ticker}/TradingAgentsStrategy_logs/full_states_log_{trade_date}.json
+```
+
+以运行 `graph.propagate(“NVDA”, “2024-05-10”)` 为例，日志文件位于：
+
+```text
+eval_results/NVDA/TradingAgentsStrategy_logs/full_states_log_2024-05-10.json
+```
+
+这个 JSON 文件记录了该次运行的完整状态，包含所有 Analyst 报告、辩论历史、Trader 规划和最终决策，可用于后续回溯和审计。
+
+## 利用记忆系统持续优化
+
+TradingAgents 内置了基于 BM25 的记忆系统，支持在多轮运行中积累经验。核心方法是 `reflect_and_remember()`，它接收一个 `returns_losses` 参数，表示持仓收益率（正数表示盈利，负数表示亏损）。
+
+```python
+# 第一次运行
+final_state, decision = graph.propagate(“NVDA”, “2024-05-10”)
+
+# 假设后续实际收益为 +1000（正数表示盈利）
+graph.reflect_and_remember(returns_losses=1000)
+
+# 如果亏损，传入负数
+# graph.reflect_and_remember(returns_losses=-500)
+```
+
+调用 `reflect_and_remember()` 后，系统会：
+
+1. 对 Bull 研究员、Bear 研究员、Trader、投资 Judge、Portfolio Manager 五个角色的决策分别进行反思。
+2. 将市场环境和反思结论存入各自的 BM25 记忆库。
+3. 后续运行时，这些角色会自动检索相似历史场景，将相关经验注入分析上下文。
+
+这意味着你跑的轮次越多、反馈越准确，系统的决策质量就有机会逐步提升。记忆检索基于词汇相似度（BM25），不需要额外的向量数据库或 API 调用。
+
+典型的多轮使用模式如下：
+
+```python
+from tradingagents.graph.trading_graph import TradingAgentsGraph
+from tradingagents.default_config import DEFAULT_CONFIG
+
+config = DEFAULT_CONFIG.copy()
+config[“llm_provider”] = “openai”
+config[“deep_think_llm”] = “gpt-5.4”
+config[“quick_think_llm”] = “gpt-5.4-mini”
+
+# 同一个 graph 实例保持记忆
+graph = TradingAgentsGraph(debug=True, config=config)
+
+# 第一轮分析
+final_state, decision = graph.propagate(“NVDA”, “2024-05-10”)
+# ... 等待实际收益结果后进行反思
+graph.reflect_and_remember(returns_losses=1000)
+
+# 第二轮分析（会自动利用上一轮的记忆）
+final_state, decision = graph.propagate(“NVDA”, “2024-06-10”)
+graph.reflect_and_remember(returns_losses=-200)
+```
 
 ## 一个稳妥的首次配置
 
@@ -241,12 +396,15 @@ print(final_state["final_trade_decision"])
 
 - [ ] 我已经能成功启动 CLI。
 - [ ] 我已经能用 Python API 执行最小示例。
-- [ ] 我知道最终决策输出在哪。
-- [ ] 我知道状态日志默认写到哪里。
+- [ ] 我知道 `decision` 返回的是单个评级词（BUY/OVERWEIGHT/HOLD/UNDERWEIGHT/SELL），`final_state["final_trade_decision"]` 返回的是完整决策文本。
+- [ ] 我知道状态日志默认写到 `eval_results/{ticker}/TradingAgentsStrategy_logs/` 目录。
 - [ ] 我知道首次运行不应把复杂度开满。
 - [ ] 我知道为什么 quick_think_llm 和 deep_think_llm 要分开配置。
+- [ ] 我知道如何通过 `output_language` 配置中文输出，以及内部辩论不受此影响。
+- [ ] 我知道如何使用 Ollama 本地模型运行，且不需要远程 API Key。
+- [ ] 我知道 `reflect_and_remember()` 的参数含义（正数盈利、负数亏损），以及记忆系统会自动在后续运行中检索相似场景。
 
 ---
 
 __文档元信息__
-难度：⭐ | 类型：入门教程 | 更新日期：2026-03-29 | 预计阅读时间：25 分钟
+难度：⭐ | 类型：入门教程 | 更新日期：2026-04-01 | 预计阅读时间：35 分钟

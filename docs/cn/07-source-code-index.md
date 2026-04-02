@@ -14,7 +14,7 @@
 
 ## 这篇文档解决什么问题
 
-当你已经理解了项目的原理和架构，下一步通常不是继续看概念，而是进入源码。但真实问题在于：代码入口很多，文件不少，如果没有索引，很容易陷入“全都看过一点，但没有真正抓住主线”的状态。
+当你已经理解了项目的原理和架构，下一步通常不是继续看概念，而是进入源码。但真实问题在于：代码入口很多，文件不少，如果没有索引，你可能会在”全都看过一点，但没有真正抓住主线”的状态中打转。
 
 这篇文档的目标就是解决这个问题：告诉你先看哪些文件、每个文件负责什么、它和其他文件是什么关系，以及不同开发目标下应该从哪里切入。
 
@@ -142,33 +142,32 @@
 
 ### 最关键的 3 个文件
 
-| 文件 | 负责什么 |
-| ---- | ---- |
-| tradingagents/dataflows/interface.py | 抽象方法到供应商实现的主路由 |
-| tradingagents/dataflows/config.py | 供应商配置读取与覆盖逻辑 |
-| tradingagents/dataflows/y_finance.py | 默认主供应商实现 |
+| 文件 | 负责什么 | 关键函数 |
+| ---- | ---- | ---- |
+| tradingagents/dataflows/interface.py | 抽象方法到供应商实现的主路由 | `route_to_vendor`, `get_vendor`, `get_category_for_method` |
+| tradingagents/dataflows/config.py | 供应商配置读取与覆盖逻辑 | `set_config`, `get_config`, `initialize_config` |
+| tradingagents/dataflows/y_finance.py | 默认主供应商实现 | `get_YFin_data_online`, `get_stock_stats_indicators_window`, `get_fundamentals` 等 |
 
 ### 供应商实现文件
 
-| 文件 | 说明 |
-| ---- | ---- |
-| tradingagents/dataflows/alpha_vantage.py | Alpha Vantage 聚合入口 |
-| tradingagents/dataflows/alpha_vantage_stock.py | 股票数据实现 |
-| tradingagents/dataflows/alpha_vantage_indicator.py | 技术指标实现 |
-| tradingagents/dataflows/alpha_vantage_fundamentals.py | 基本面实现 |
-| tradingagents/dataflows/alpha_vantage_news.py | 新闻实现 |
-| tradingagents/dataflows/alpha_vantage_common.py | Alpha Vantage 公共逻辑与异常 |
-| tradingagents/dataflows/y_finance.py | yfinance 股票与财务数据实现 |
-| tradingagents/dataflows/yfinance_news.py | yfinance 新闻实现 |
-| tradingagents/dataflows/stockstats_utils.py | 技术指标辅助计算 |
+| 文件 | 说明 | 关键函数 |
+| ---- | ---- | ---- |
+| tradingagents/dataflows/alpha_vantage.py | Alpha Vantage 聚合入口 | 各 `get_*` 函数 |
+| tradingagents/dataflows/alpha_vantage_stock.py | 股票数据实现 | `get_stock` |
+| tradingagents/dataflows/alpha_vantage_indicator.py | 技术指标实现 | `get_indicator` |
+| tradingagents/dataflows/alpha_vantage_fundamentals.py | 基本面实现 | `get_fundamentals`, `get_balance_sheet` 等 |
+| tradingagents/dataflows/alpha_vantage_news.py | 新闻实现 | `get_news`, `get_global_news` |
+| tradingagents/dataflows/alpha_vantage_common.py | 公共逻辑与异常 | `AlphaVantageRateLimitError` |
+| tradingagents/dataflows/yfinance_news.py | yfinance 新闻实现 | `get_news_yfinance`, `get_global_news_yfinance` |
+| tradingagents/dataflows/stockstats_utils.py | 技术指标辅助计算 | 内部工具函数 |
 
 如果你要新增供应商，从 interface.py 开始，比直接看具体实现文件更高效。
 
-读 interface.py 时，建议优先抓住 3 个函数：
+读 interface.py 时，建议优先抓住 3 个核心数据结构：
 
-1. get_category_for_method：确认某个工具属于哪一类能力。
-2. get_vendor：确认 tool_vendors 如何覆盖 data_vendors。
-3. route_to_vendor：确认主路由、回退链和异常处理逻辑。
+1. **`TOOLS_CATEGORIES`**：定义工具分组（core_stock_apis、technical_indicators、fundamental_data、news_data）
+2. **`VENDOR_METHODS`**：定义每个工具方法到供应商实现的映射
+3. **`route_to_vendor()`**：按优先级尝试供应商，只在 `AlphaVantageRateLimitError` 时回退
 
 ## LLM Client 层索引
 
@@ -278,4 +277,4 @@
 ---
 
 __文档元信息__
-难度：⭐⭐⭐⭐ | 类型：源码索引 | 更新日期：2026-03-29 | 预计阅读时间：30 分钟
+难度：⭐⭐⭐⭐ | 类型：源码索引 | 更新日期：2026-04-01 | 预计阅读时间：35 分钟

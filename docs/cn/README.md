@@ -68,15 +68,15 @@
 
 | 文档 | 适合谁 | 你会得到什么 |
 | ---- | ---- | ---- |
-| [01-quickstart.md](01-quickstart.md) | 首次使用者 | 从安装到首次运行的最短成功路径 |
-| [02-principles-and-workflow.md](02-principles-and-workflow.md) | 想理解设计理念的人 | 多 Agent、图编排、工具调用与辩论流程的原理分析 |
-| [03-architecture.md](03-architecture.md) | 研究者与开发者 | 目录分层、状态模型、关键模块和执行链路的架构解剖 |
-| [04-usage-and-configuration.md](04-usage-and-configuration.md) | 高频使用者 | CLI、Python API、配置项、模型与数据源调优方法 |
-| [05-extension-guide.md](05-extension-guide.md) | 二次开发者 | 新增 Analyst、Provider、数据源和工作流的具体落地步骤 |
-| [06-testing-and-evolution.md](06-testing-and-evolution.md) | 维护者与贡献者 | 测试现状、已知局限、演进方向与常见问题排查 |
-| [07-source-code-index.md](07-source-code-index.md) | 开发者 | 从问题出发快速定位关键源码文件 |
-| [08-contributor-guide.md](08-contributor-guide.md) | 贡献者 | 面向协作的改动策略、验证顺序与文档同步规则 |
-| [tradingagents-complete-guide.md](tradingagents-complete-guide.md) | 需要全景阅读的人 | 单篇整合版全景文档 |
+| [01-quickstart.md](01-quickstart.md) | 首次使用者 | 从安装到首次运行的最短成功路径；Ollama 本地模型；记忆系统入门；结果解读 |
+| [02-principles-and-workflow.md](02-principles-and-workflow.md) | 想理解设计理念的人 | 多 Agent、图编排、工具调用与辩论流程的原理分析；辩论乘数机制；Prompt 设计哲学 |
+| [03-architecture.md](03-architecture.md) | 研究者与开发者 | 5 层目录分层、状态模型、normalize_content、记忆系统、信号处理的架构解剖 |
+| [04-usage-and-configuration.md](04-usage-and-configuration.md) | 高频使用者 | CLI、Python API、output_language、Provider 专属参数、callbacks、配置场景速查 |
+| [05-extension-guide.md](05-extension-guide.md) | 二次开发者 | 完整 Macro Analyst 代码模板、扩展验证测试、output_language 传播 |
+| [06-testing-and-evolution.md](06-testing-and-evolution.md) | 维护者与贡献者 | MVP 测试集（4 个可直接使用的模板）、pytest 配置、测试优先级 |
+| [07-source-code-index.md](07-source-code-index.md) | 开发者 | 从问题出发快速定位关键源码文件；每个文件的关键函数索引 |
+| [08-contributor-guide.md](08-contributor-guide.md) | 贡献者 | 改动策略、验证顺序、PR 格式模板、Git 工作流 |
+| [tradingagents-complete-guide.md](tradingagents-complete-guide.md) | 需要全景阅读的人 | 使用场景详解、性能与成本分析、新手到专家全景 |
 
 ## 学习目标
 
@@ -111,12 +111,15 @@ flowchart TD
 
 ## 快速排查与导航
 
-如果你不是来“按顺序学习”，而是因为某个具体问题来查文档，可以直接跳：
+如果你不是来”按顺序学习”，而是因为某个具体问题来查文档，可以直接跳：
 
 1. 找不到结果文件，或对 results_dir 与 eval_results 感到困惑：读 [06-testing-and-evolution.md](06-testing-and-evolution.md)。
-2. 想新增一个 Analyst、Provider 或数据源：读 [05-extension-guide.md](05-extension-guide.md)。
+2. 想新增一个 Analyst、Provider 或数据源：读 [05-extension-guide.md](05-extension-guide.md)，里面有完整代码模板和测试用例。
 3. 改了代码后图不收敛，或不知道问题在哪一层：先读 [03-architecture.md](03-architecture.md)，再查 [07-source-code-index.md](07-source-code-index.md)。
 4. 想判断一次改动是否足够安全：读 [08-contributor-guide.md](08-contributor-guide.md)。
+5. 想了解为什么辩论轮数设置 1 和 2 差别这么大：读 [02-principles-and-workflow.md](02-principles-and-workflow.md) 的”辩论轮数”章节。
+6. 想配置中文输出或本地 Ollama：读 [04-usage-and-configuration.md](04-usage-and-configuration.md) 的”配置场景速查”。
+7. 想了解运行一次大概花多少钱、需要多久：读 [tradingagents-complete-guide.md](tradingagents-complete-guide.md) 的”性能与成本分析”。
 
 ### 路径之间如何衔接
 
@@ -156,4 +159,4 @@ flowchart TD
 ---
 
 __文档元信息__
-难度：⭐⭐ | 类型：文档导航 | 更新日期：2026-03-29 | 预计阅读时间：15 分钟
+难度：⭐⭐ | 类型：文档导航 | 更新日期：2026-04-01 | 预计阅读时间：15 分钟
