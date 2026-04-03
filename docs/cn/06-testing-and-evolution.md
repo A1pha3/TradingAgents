@@ -250,7 +250,7 @@ class TestPropagation(unittest.TestCase):
 
 ### pytest 配置建议
 
-在 `pyproject.toml` 中添加：
+当前 `pyproject.toml` 尚未包含 pytest 配置，建议在其中添加以下内容，以统一测试运行行为：
 
 ```toml
 [tool.pytest.ini_options]

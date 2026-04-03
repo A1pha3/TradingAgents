@@ -58,7 +58,7 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from tradingagents.agents.utils.agent_utils import (
     build_instrument_context,
-    get_global_news,
+    get_global_news,        # 定义于 agents/utils/news_data_tools.py，由 agent_utils 重新导出
     get_language_instruction,
 )
 

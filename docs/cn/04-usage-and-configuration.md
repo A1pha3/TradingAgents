@@ -68,8 +68,8 @@ Python API 适合：
 ```python
 DEFAULT_CONFIG = {
     "llm_provider": "openai",
-    "deep_think_llm": "gpt-5.4",
-    "quick_think_llm": "gpt-5.4-mini",
+    "deep_think_llm": "gpt-5.4",      # 需替换为你的 Provider 实际支持的模型名
+    "quick_think_llm": "gpt-5.4-mini", # 需替换为你的 Provider 实际支持的模型名
     "backend_url": "https://api.openai.com/v1",
     # Provider 专属参数（仅对应 Provider 被选中时生效）
     "google_thinking_level": None,      # 可选: "high", "minimal" 等
@@ -149,6 +149,16 @@ max_recur_limit 对应图执行时的 recursion_limit。它的作用不是改善
 2. 太高，异常条件边或工具循环会更难被及时发现。
 3. 默认值 100 对当前主流程是偏保守的安全上限，通常不需要在首次使用时调整。
 
+### results_dir
+
+`results_dir` 的默认值为 `"./results"`，支持通过环境变量覆盖：
+
+```bash
+export TRADINGAGENTS_RESULTS_DIR=/path/to/my/results
+```
+
+**重要说明**：`results_dir` 当前**尚未被图执行流程真正使用**。实际运行状态日志由 `trading_graph.py` 直接写入 `eval_results/{ticker}/TradingAgentsStrategy_logs/` 目录，该路径硬编码在代码中，不受 `results_dir` 配置影响。判断系统是否正常运行时，请优先检查 `eval_results/` 目录，而不是 `results_dir` 所指向的路径。这是一个已知的工程一致性问题，待后续版本统一。
+
 ### output_language
 
 控制用户可见输出的语言。默认值为 `"English"`。
@@ -161,7 +171,7 @@ config["output_language"] = "中文"  # 或 "日本語"、"Français" 等
 
 1. **只影响用户可见输出**。此配置作用于 Analyst 报告和 Portfolio Manager 最终决策，使这些内容以指定语言呈现。
 2. **内部辩论始终使用英文**。Research Debate（Bull/Bear 辩论）和 Risk Debate（风险讨论）不受此配置影响，始终保持英文以保证推理质量。
-3. **无额外 token 开销（默认情况）**。实现原理是 `get_language_instruction()` 函数在 `output_language` 为 `"English"` 时返回空字符串，不消耗任何额外 token；仅在设置为非 English 时追加 `" Write your entire response in {lang}."` 指令。
+3. **无额外 token 开销（默认情况）**。实现原理是 `get_language_instruction()` 函数通过 `get_config()` 读取全局配置中的 `output_language` 字段（`TradingAgentsGraph` 在初始化时会通过 `set_config()` 将配置写入全局），在值为 `"English"` 时返回空字符串，不消耗任何额外 token；仅在设置为非 English 时追加 `" Write your entire response in {lang}."` 指令。
 
 具体应用于以下 Agent（源码位置：各 Analyst 和 Portfolio Manager 的 prompt 构造处）：
 

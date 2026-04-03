@@ -62,6 +62,7 @@ pip install .
 | venv | 已经有系统 Python 的轻量用户 | 标准库自带、依赖少 | 需要自己管理 Python 版本 |
 | virtualenv | 习惯纯 pip 工作流的用户 | 与 venv 体验接近，兼容面广 | 本质收益和 venv 接近 |
 | poetry | 想顺带管理依赖锁定的开发者 | 环境与依赖声明更统一 | 首次上手成本更高 |
+| uv | 追求安装速度和现代工作流的用户 | 极快的依赖解析与安装，支持 lockfile | 生态相对较新，部分 CI 需额外配置 |
 
 如果你只是第一次验证项目能不能跑通，优先选 conda 或 venv，不要一开始就把环境管理也变成研究课题。
 
@@ -133,11 +134,8 @@ from tradingagents.default_config import DEFAULT_CONFIG
 
 config = DEFAULT_CONFIG.copy()
 config["llm_provider"] = "openai"
-config["deep_think_llm"] = "gpt-5.4"
-config["quick_think_llm"] = "gpt-5.4-mini"
-
-graph = TradingAgentsGraph(debug=True, config=config)
-final_state, decision = graph.propagate("NVDA", "2024-05-10")
+config["deep_think_llm"] = "gpt-5.4"       # 替换为你的 Provider 实际支持的模型名，如 "gpt-4o"
+config["quick_think_llm"] = "gpt-5.4-mini"  # 替换为你的 Provider 实际支持的模型名，如 "gpt-4o-mini"
 
 print(decision)
 print(final_state["final_trade_decision"])
@@ -195,7 +193,7 @@ config["output_language"] = "中文"  # 默认为 "English"
 
 这个配置的工作方式需要理解以下几点：
 
-1. `output_language` 通过 `get_language_instruction()` 函数注入到 Analyst 和 Portfolio Manager 的 prompt 中，让这些面向用户的 Agent 用指定语言撰写报告。
+1. `output_language` 通过 `get_language_instruction()` 函数注入到 Analyst 和 Portfolio Manager 的 prompt 中。该函数通过全局配置（`get_config()`）读取此字段——`TradingAgentsGraph` 初始化时会自动将 config 写入全局，因此直接在 config 中设置 `output_language` 即可生效，无需额外操作。
 2. 内部的辩论环节（Bull/Bear 研究员、风险讨论等）始终保持英文，以保证推理质量不受语言切换影响。
 3. 支持任意自然语言描述，例如 `"中文"`、`"日本語"`、`"Français"` 均可。
 
@@ -297,8 +295,8 @@ from tradingagents.default_config import DEFAULT_CONFIG
 
 config = DEFAULT_CONFIG.copy()
 config[“llm_provider”] = “openai”
-config[“deep_think_llm”] = “gpt-5.4”
-config[“quick_think_llm”] = “gpt-5.4-mini”
+config[“deep_think_llm”] = “gpt-5.4”       # 替换为你的 Provider 实际支持的模型名，如 “gpt-4o”
+config[“quick_think_llm”] = “gpt-5.4-mini”  # 替换为你的 Provider 实际支持的模型名，如 “gpt-4o-mini”
 
 # 同一个 graph 实例保持记忆
 graph = TradingAgentsGraph(debug=True, config=config)
