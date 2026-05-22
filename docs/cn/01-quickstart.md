@@ -93,7 +93,7 @@ export ALPHA_VANTAGE_API_KEY=your_alpha_vantage_key
 | ANTHROPIC_API_KEY | 你选择 anthropic 作为 llm_provider 时 | Anthropic 客户端无法创建 |
 | ALPHA_VANTAGE_API_KEY | 你把某些 data_vendors 或 tool_vendors 切到 alpha_vantage 时 | 工具调用失败或频繁回退到其他供应商 |
 
-这也是为什么“不是所有 Key 都必须配齐”不等于“可以随便缺”。你只要缺的是当前执行路径上会用到的那个 Key，系统就会在运行前或工具调用阶段报错。
+所以"不是所有 Key 都必须配齐"不等于"可以随便缺"。你只要缺的是当前执行路径上会用到的那个 Key，系统就会在运行前或工具调用阶段报错。
 
 如果你使用本地 Ollama，则不需要远程模型 Key，但要确保 Ollama 服务已启动，且需要的模型已经拉取完成。
 
