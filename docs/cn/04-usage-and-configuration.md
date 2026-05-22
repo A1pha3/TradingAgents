@@ -235,9 +235,7 @@ config["tool_vendors"] = {
 }
 ```
 
-这表示 get_news 会先尝试 yfinance，只有主供应商失败时才回退到 alpha_vantage。
-
-这意味着你可以：
+这表示 get_news 会先尝试 yfinance，只有主供应商失败时才回退到 alpha_vantage。你可以：
 
 1. 大多数工具走 yfinance。
 2. 仅把少数关键工具切到 Alpha Vantage。
@@ -613,7 +611,7 @@ with open("backtest_signals.json", "w") as f:
 5. data_vendors 与 tool_vendors。
 6. 最终决策和关键中间报告摘要。
 
-这样做的意义在于，你后续复盘时不会只剩下一个 BUY 或 SELL，而能追溯结论是如何形成的。
+这样做是为了后续复盘时能追溯结论的形成过程，而不是只剩一个 BUY 或 SELL 标签。
 
 进一步地，建议把实验迭代固定成一轮只改一个变量：
 
