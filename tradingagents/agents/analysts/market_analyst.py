@@ -1,6 +1,4 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-import time
-import json
 from tradingagents.agents.utils.agent_utils import (
     build_instrument_context,
     get_indicators,
@@ -14,7 +12,10 @@ def create_market_analyst(llm):
 
     def market_analyst_node(state):
         current_date = state["trade_date"]
-        instrument_context = build_instrument_context(state["company_of_interest"])
+        asset_type = state.get("asset_type", "stock")
+        instrument_context = build_instrument_context(
+            state["company_of_interest"], asset_type
+        )
 
         tools = [
             get_stock_data,
