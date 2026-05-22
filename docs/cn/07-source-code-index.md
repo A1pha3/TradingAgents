@@ -51,14 +51,14 @@
 
 ### 先看这几份
 
-| 文件 | 作用 | 你能从中确认什么 |
-| ---- | ---- | ---- |
-| tradingagents/graph/trading_graph.py | 主编排类 | 系统初始化流程、propagate 主入口、日志落盘 |
-| tradingagents/graph/setup.py | Graph 构建器 | 节点、边、阶段顺序、动态 Analyst 接入方式 |
-| tradingagents/graph/conditional_logic.py | 条件逻辑 | 何时继续调工具、何时结束辩论 |
-| tradingagents/graph/propagation.py | 初始状态与运行参数 | graph 从什么状态开始，如何设置 recursion_limit |
-| tradingagents/graph/reflection.py | 反思反馈 | 如何把收益反馈写回记忆系统 |
-| tradingagents/graph/signal_processing.py | 信号提取 | 如何从自然语言决策中提炼核心信号 |
+| 文件 | 作用 | 关键行号 | 你能从中确认什么 |
+| ---- | ---- | ---- | ---- |
+| tradingagents/graph/trading_graph.py | 主编排类 | `:43` class, `:158` tool nodes, `:194` propagate, `:229` _log_state | 系统初始化流程、propagate 主入口、日志落盘 |
+| tradingagents/graph/setup.py | Graph 构建器 | `:40` setup_graph | 节点、边、阶段顺序、动态 Analyst 接入方式 |
+| tradingagents/graph/conditional_logic.py | 条件逻辑 | `:46` debate, `:57` risk | 何时继续调工具、何时结束辩论 |
+| tradingagents/graph/propagation.py | 初始状态与运行参数 | `:18` create_initial_state | graph 从什么状态开始，如何设置 recursion_limit |
+| tradingagents/graph/reflection.py | 反思反馈 | — | 如何把收益反馈写回记忆系统 |
+| tradingagents/graph/signal_processing.py | 信号提取 | `:13` process_signal | 如何从自然语言决策中提炼核心信号 |
 
 ### 推荐阅读顺序
 
@@ -133,10 +133,11 @@
 
 其中最值得优先扫一眼的函数有：
 
-1. agent_states.py 里的 AgentState，用来确认状态契约到底有哪些字段。
-2. agent_utils.py 里的 create_msg_delete，用来理解 Analyst 阶段结束后的消息清理策略。
-3. agent_utils.py 里的 build_instrument_context，用来理解为什么 ticker 后缀不能丢。
-4. agent_utils.py 里的 get_language_instruction，用来理解用户可见输出语言如何注入。
+1. `agent_states.py:50` 的 `AgentState`，用来确认状态契约到底有哪些字段。
+2. `agent_utils.py:45` 的 `create_msg_delete`，用来理解 Analyst 阶段结束后的消息清理策略。
+3. `agent_utils.py:37` 的 `build_instrument_context`，用来理解为什么 ticker 后缀不能丢。
+4. `agent_utils.py:23` 的 `get_language_instruction`，用来理解用户可见输出语言如何注入。
+5. `memory.py:57` 的 `get_memories`，用来理解 BM25 记忆检索的签名和默认值。
 
 ## 数据流层索引
 
@@ -179,10 +180,70 @@
 | tradingagents/llm_clients/anthropic_client.py | Anthropic 实现 |
 | tradingagents/llm_clients/google_client.py | Google 实现 |
 | tradingagents/llm_clients/validators.py | 模型合法性校验 |
+| tradingagents/llm_clients/model_catalog.py | CLI 模型选项目录（按 provider 和模式分组的可选模型列表） |
 
 如果你只准备切模型配置，不一定要读这些文件；但如果你要接新 Provider，这一层是主战场。
 
-其中 base_client.py 不只是“抽象父类”。它还定义了 normalize_content，这个函数会把部分 provider 返回的内容块压平成纯文本，是多 provider 稳定运行的关键兼容层。
+其中 base_client.py 不只是”抽象父类”。它还定义了 normalize_content，这个函数会把部分 provider 返回的内容块压平成纯文本，是多 provider 稳定运行的关键兼容层。
+
+### 关键代码片段速查
+
+以下是各模块最核心的代码片段，帮助你在不打开源码的情况下快速理解实现：
+
+**`conditional_logic.py:49-51` — 投资辩论收敛条件**
+
+```python
+if state[“investment_debate_state”][“count”] >= 2 * self.max_debate_rounds:
+    return “Research Manager”
+```
+
+**`conditional_logic.py:59-60` — 风险辩论收敛条件**
+
+```python
+if state[“risk_debate_state”][“count”] >= 3 * self.max_risk_discuss_rounds:
+    return “Portfolio Manager”
+```
+
+**`agent_utils.py:23-34` — 输出语言指令生成**
+
+```python
+def get_language_instruction() -> str:
+    from tradingagents.dataflows.config import get_config
+    lang = get_config().get(“output_language”, “English”)
+    if lang.strip().lower() == “english”:
+        return “”
+    return f” Write your entire response in {lang}.”
+```
+
+**`memory.py:57-58` — 记忆检索签名**
+
+```python
+def get_memories(self, current_situation: str, n_matches: int = 1) -> List[dict]:
+    # BM25 检索，默认返回 1 条，所有调用方显式传入 n_matches=2
+```
+
+**`base_client.py:6-14` — 内容归一化**
+
+```python
+def normalize_content(response):
+    content = response.content
+    if isinstance(content, list):
+        texts = [item.get(“text”,””) for item in content
+                 if isinstance(item,dict) and item.get(“type”)==”text”]
+        response.content = “\n”.join(t for t in texts if t)
+    return response
+```
+
+**`propagation.py:22-24` — 初始状态结构**
+
+```python
+return {
+    “messages”: [(“human”, company_name)],
+    “company_of_interest”: company_name,
+    “trade_date”: str(trade_date),
+    # ... 4 个空报告字段 + 2 个辩论状态
+}
+```
 
 ## CLI 层索引
 
@@ -284,4 +345,4 @@
 ---
 
 __文档元信息__
-难度：⭐⭐⭐⭐ | 类型：源码索引 | 更新日期：2026-04-01 | 预计阅读时间：35 分钟
+难度：⭐⭐⭐⭐ | 类型：源码索引 | 更新日期：2026-04-07 | 预计阅读时间：35 分钟

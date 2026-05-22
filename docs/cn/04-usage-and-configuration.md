@@ -67,6 +67,9 @@ Python API 适合：
 
 ```python
 DEFAULT_CONFIG = {
+    "project_dir": os.path.abspath(...),   # 项目根目录，自动生成
+    "results_dir": os.getenv("TRADINGAGENTS_RESULTS_DIR", "./results"),
+    "data_cache_dir": os.path.join(project_dir, "dataflows/data_cache"),
     "llm_provider": "openai",
     "deep_think_llm": "gpt-5.4",      # 需替换为你的 Provider 实际支持的模型名
     "quick_think_llm": "gpt-5.4-mini", # 需替换为你的 Provider 实际支持的模型名
@@ -149,15 +152,19 @@ max_recur_limit 对应图执行时的 recursion_limit。它的作用不是改善
 2. 太高，异常条件边或工具循环会更难被及时发现。
 3. 默认值 100 对当前主流程是偏保守的安全上限，通常不需要在首次使用时调整。
 
+### project_dir 与 data_cache_dir
+
+`project_dir` 指向 TradingAgents 包的安装根目录（由 `os.path.abspath` 自动计算），`data_cache_dir` 是数据缓存目录，默认位于 `{project_dir}/dataflows/data_cache`。这两个字段通常不需要手动修改。
+
 ### results_dir
 
-`results_dir` 的默认值为 `"./results"`，支持通过环境变量覆盖：
+`results_dir` 的默认值为 `"./results"`，支持通过环境变量 `TRADINGAGENTS_RESULTS_DIR` 覆盖：
 
 ```bash
 export TRADINGAGENTS_RESULTS_DIR=/path/to/my/results
 ```
 
-**重要说明**：`results_dir` 当前**尚未被图执行流程真正使用**。实际运行状态日志由 `trading_graph.py` 直接写入 `eval_results/{ticker}/TradingAgentsStrategy_logs/` 目录，该路径硬编码在代码中，不受 `results_dir` 配置影响。判断系统是否正常运行时，请优先检查 `eval_results/` 目录，而不是 `results_dir` 所指向的路径。这是一个已知的工程一致性问题，待后续版本统一。
+**重要说明**：`results_dir` 当前**尚未被图执行流程真正使用**。实际运行状态日志由 `trading_graph.py` 中的 `_log_state` 方法直接写入硬编码路径 `eval_results/{ticker}/TradingAgentsStrategy_logs/full_states_log_{trade_date}.json`，不受 `results_dir` 配置影响。判断系统是否正常运行时，请优先检查 `eval_results/` 目录，而不是 `results_dir` 所指向的路径。这是一个已知的工程一致性问题，待后续版本统一。
 
 ### output_language
 
@@ -471,6 +478,123 @@ config["max_recur_limit"] = 200
 
 要点：所有节点都使用最强模型，推理力度调至最高，辩论轮数增加以获得更充分的讨论。注意 token 消耗会显著增加，建议配合 `StatsCallbackHandler` 监控成本。
 
+## 端到端使用场景 walkthrough
+
+### 场景五：批量多标的快速对比
+
+目标：对多只股票快速生成对比分析，适合筛选阶段。
+
+```python
+from tradingagents.graph.trading_graph import TradingAgentsGraph
+from tradingagents.default_config import DEFAULT_CONFIG
+
+config = DEFAULT_CONFIG.copy()
+config["quick_think_llm"] = "gpt-5.4-mini"
+config["deep_think_llm"] = "gpt-5.4-mini"    # 快速模式：深度模型也用 mini
+config["max_debate_rounds"] = 1
+config["max_risk_discuss_rounds"] = 1
+
+graph = TradingAgentsGraph(
+    selected_analysts=["market", "news"],    # 只启用 2 个 Analyst
+    config=config,
+)
+
+tickers = ["AAPL", "MSFT", "GOOGL", "AMZN", "NVDA"]
+results = {}
+for ticker in tickers:
+    state, decision = graph.propagate(ticker, "2024-05-10")
+    results[ticker] = decision
+    print(f"{ticker}: {decision}")
+    # 批量场景不调用 reflect_and_remember，避免跨标的记忆污染
+
+# 输出示例：
+# AAPL: HOLD
+# MSFT: BUY
+# GOOGL: OVERWEIGHT
+# AMZN: BUY
+# NVDA: BUY
+```
+
+要点：批量场景使用统一的最小配置，不积累记忆。后续对感兴趣的标的再用完整配置做深度分析。
+
+### 场景六：带记忆反馈的研究循环
+
+目标：对同一标的进行多轮分析，利用记忆系统逐步改进决策质量。
+
+```python
+from tradingagents.graph.trading_graph import TradingAgentsGraph
+from tradingagents.default_config import DEFAULT_CONFIG
+
+config = DEFAULT_CONFIG.copy()
+config["deep_think_llm"] = "gpt-5.4"
+config["max_debate_rounds"] = 2
+
+# 同一个 graph 实例保持记忆
+graph = TradingAgentsGraph(debug=False, config=config)
+
+# 第一轮：NVDA 在 2024-05-10 的分析
+state1, decision1 = graph.propagate("NVDA", "2024-05-10")
+print(f"第一轮决策: {decision1}")
+
+# 假设持仓 30 天后收益为 +1200（正数表示盈利）
+graph.reflect_and_remember(returns_losses=1200)
+
+# 第二轮：NVDA 在 2024-06-10 的分析（会自动利用上一轮记忆）
+state2, decision2 = graph.propagate("NVDA", "2024-06-10")
+print(f"第二轮决策: {decision2}")
+
+# 假设这一轮亏损 -500（负数表示亏损）
+graph.reflect_and_remember(returns_losses=-500)
+
+# 第三轮：记忆系统现在包含盈利和亏损两种经验
+state3, decision3 = graph.propagate("NVDA", "2024-07-10")
+print(f"第三轮决策: {decision3}")
+```
+
+要点：记忆反馈的核心是 `returns_losses` 参数——正数表示盈利，负数表示亏损。系统会对 5 个角色（Bull/Bear Researcher、Trader、Research Manager、Portfolio Manager）分别反思，将市场环境和反思结论存入各自的 BM25 记忆库。后续运行时自动检索相似历史场景。
+
+### 场景七：接入回测框架的集成模式
+
+目标：将 TradingAgents 嵌入外部回测流水线，程序化消费 `decision` 信号。
+
+```python
+from tradingagents.graph.trading_graph import TradingAgentsGraph
+from tradingagents.default_config import DEFAULT_CONFIG
+import json
+
+config = DEFAULT_CONFIG.copy()
+config["quick_think_llm"] = "gpt-5.4-mini"
+config["deep_think_llm"] = "gpt-5.4"
+
+graph = TradingAgentsGraph(
+    selected_analysts=["market", "fundamentals"],
+    debug=False,
+    config=config,
+)
+
+# 模拟回测：对 NVDA 每月做一次分析
+ticker = "NVDA"
+dates = ["2024-01-10", "2024-02-10", "2024-03-10", "2024-04-10"]
+signals = []
+
+for date in dates:
+    state, decision = graph.propagate(ticker, date)
+    signals.append({"date": date, "signal": decision})
+    print(f"{date}: {decision}")
+
+# 将信号写入 JSON，供外部回测引擎消费
+with open("backtest_signals.json", "w") as f:
+    json.dump(signals, f, indent=2)
+
+# 输出示例：
+# [{"date": "2024-01-10", "signal": "BUY"},
+#  {"date": "2024-02-10", "signal": "HOLD"},
+#  {"date": "2024-03-10", "signal": "OVERWEIGHT"},
+#  {"date": "2024-04-10", "signal": "SELL"}]
+```
+
+要点：`decision` 返回的 5 级评级词（`BUY`/`OVERWEIGHT`/`HOLD`/`UNDERWEIGHT`/`SELL`）可以直接映射为回测信号。如果需要更细粒度的判断，可以解析 `final_state["final_trade_decision"]` 中的 Position Suggestion 部分。
+
 ## 使用中的常见误区
 
 1. 把研究深度当成装饰性选项。
@@ -518,4 +642,4 @@ config["max_recur_limit"] = 200
 ---
 
 __文档元信息__
-难度：⭐⭐⭐ | 类型：核心概念 | 更新日期：2026-04-01 | 预计阅读时间：50 分钟
+难度：⭐⭐⭐ | 类型：核心概念 | 更新日期：2026-04-07 | 预计阅读时间：50 分钟

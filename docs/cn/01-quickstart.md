@@ -137,8 +137,11 @@ config["llm_provider"] = "openai"
 config["deep_think_llm"] = "gpt-5.4"       # 替换为你的 Provider 实际支持的模型名，如 "gpt-4o"
 config["quick_think_llm"] = "gpt-5.4-mini"  # 替换为你的 Provider 实际支持的模型名，如 "gpt-4o-mini"
 
-print(decision)
-print(final_state["final_trade_decision"])
+graph = TradingAgentsGraph(debug=True, config=config)
+final_state, decision = graph.propagate("NVDA", "2024-05-10")
+
+print(decision)                              # 单个评级词：BUY / OVERWEIGHT / HOLD / UNDERWEIGHT / SELL
+print(final_state["final_trade_decision"])   # Portfolio Manager 的完整决策文本
 ```
 
 这个示例会触发完整工作流：Analyst 分析、研究辩论、Trader 规划、风险讨论和最终拍板。
@@ -210,6 +213,27 @@ config["output_language"] = "中文"  # 默认为 "English"
 
 这 4 个信号组合起来，才算真正跑通，而不是”命令执行过”。
 
+### debug 模式说明
+
+`TradingAgentsGraph` 的 `debug` 参数控制执行过程的可见性：
+
+| debug 值 | 行为 | 适用场景 |
+| ---- | ---- | ---- |
+| `True` | 逐步流式执行，每个阶段的输出实时打印到终端 | 首次验证、调试问题、理解流程 |
+| `False` | 静默执行，只在最后返回结果 | 批量运行、生产脚本、自动化任务 |
+
+两种模式返回值完全相同。区别仅在于中间过程是否可见。
+
+### propagate() 内部做了什么
+
+当你调用 `graph.propagate("NVDA", "2024-05-10")` 时，系统按以下步骤执行：
+
+1. **构造初始状态**：创建包含标的 `"NVDA"`、日期 `"2024-05-10"`、空报告字段和空辩论状态的结构化字典。
+2. **启动图执行**：将初始状态送入 LangGraph 编排引擎，依次执行 Analyst → Research Debate → Trader → Risk Debate → Portfolio Manager 流水线。
+3. **记录状态**：将完整最终状态保存为 JSON 日志文件到 `eval_results/` 目录。
+4. **提取信号**：调用 `SignalProcessor` 从完整决策文本中提取单个评级词。
+5. **返回结果**：返回 `(final_state, decision)` 元组。
+
 ### 运行结果示例与解读
 
 下面是一个成功运行后的典型输出，帮助你理解 `propagate()` 的两个返回值分别代表什么。
@@ -241,12 +265,41 @@ decision: “BUY”
 | ---- | ---- |
 | `market_report` | Market Analyst 的市场技术面分析报告 |
 | `sentiment_report` | Social Analyst 的社交媒体情绪报告 |
-| `news_report` | News Analyst 的新闻与 insider 交易分析报告 |
+| `news_report` | News Analyst 的公司与全球新闻分析报告 |
 | `fundamentals_report` | Fundamentals Analyst 的基本面分析报告 |
 | `investment_debate_state` | Bull/Bear 辩论的完整历史和 Judge 裁决 |
 | `trader_investment_plan` | Trader 的交易规划 |
 | `risk_debate_state` | Aggressive/Conservative/Neutral 风险讨论的完整历史和 Judge 裁决 |
 | `final_trade_decision` | Portfolio Manager 的最终决策文本 |
+
+### 遍历中间报告的实用代码
+
+如果你需要逐份检查各环节的输出质量，可以使用下面的代码片段：
+
+```python
+# 检查各 Analyst 报告是否有内容
+report_fields = {
+    "market_report": "市场分析",
+    "sentiment_report": "情绪分析",
+    "news_report": "新闻分析",
+    "fundamentals_report": "基本面分析",
+}
+
+for field, label in report_fields.items():
+    content = final_state.get(field, "")
+    status = "✓ 有内容" if content else "✗ 为空"
+    print(f"{label}（{field}）: {status}")
+
+# 查看辩论概况
+debate = final_state["investment_debate_state"]
+print(f"投资辩论发言次数: {debate['count']}")
+print(f"研究经理裁决: {debate['judge_decision'][:80]}...")
+
+# 查看 Trader 和最终决策
+print(f"Trader 规划: {final_state['trader_investment_plan'][:80]}...")
+print(f"最终决策: {final_state['final_trade_decision'][:80]}...")
+print(f"SignalProcessor 提取的评级: {decision}")
+```
 
 ### 日志文件结构
 
@@ -405,4 +458,4 @@ graph.reflect_and_remember(returns_losses=-200)
 ---
 
 __文档元信息__
-难度：⭐ | 类型：入门教程 | 更新日期：2026-04-01 | 预计阅读时间：35 分钟
+难度：⭐ | 类型：入门教程 | 更新日期：2026-04-07 | 预计阅读时间：35 分钟

@@ -153,9 +153,33 @@ def create_macro_analyst(llm):
 
 在 tradingagents/agents/__init__.py 中导出 create_macro_analyst。如果你额外维护 analysts 子目录自己的导出，也应保持两处入口一致，避免上层装配时找不到符号。
 
-### 第 3 步：新增状态字段
+### 第 3 步：新增状态字段（两处必须同步更新）
 
-在 AgentState 中增加 macro_report，保证后续节点和日志系统有地方承接新报告。
+这一步需要同时修改两个文件，缺一不可：
+
+**3a. 更新 AgentState 类型定义**
+
+在 [tradingagents/agents/utils/agent_states.py](../../tradingagents/agents/utils/agent_states.py) 的 `AgentState` 中增加 `macro_report` 字段：
+
+```python
+class AgentState(MessagesState):
+    # ... 已有字段 ...
+    macro_report: Annotated[str, "Report from the Macro Analyst"]  # 新增
+```
+
+**3b. 更新初始状态构造**
+
+在 [tradingagents/graph/propagation.py](../../tradingagents/graph/propagation.py) 的 `Propagator.create_initial_state` 中为新字段提供初始值。如果跳过这一步，新字段在图执行开始时不会存在，后续节点尝试读取时可能引发 `KeyError` 或得到 `None` 而非预期的空字符串：
+
+```python
+def create_initial_state(self, company_name, trade_date):
+    return {
+        # ... 已有字段 ...
+        "macro_report": "",  # 新增：必须初始化为空字符串
+    }
+```
+
+两处更新的对应关系：`AgentState` 定义字段类型，`create_initial_state` 提供运行时初始值。
 
 ### 第 4 步：接入工具节点
 
@@ -405,4 +429,4 @@ TradingAgents 的扩展能力不错，但前提是你尊重它现有的边界设
 ---
 
 __文档元信息__
-难度：⭐⭐⭐⭐ | 类型：专家设计 | 更新日期：2026-04-01 | 预计阅读时间：55 分钟
+难度：⭐⭐⭐⭐ | 类型：专家设计 | 更新日期：2026-04-07 | 预计阅读时间：55 分钟

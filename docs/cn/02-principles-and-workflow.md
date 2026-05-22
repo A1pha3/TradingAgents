@@ -99,6 +99,43 @@ TradingAgents 的核心不是“模型多”，而是“角色清晰”。系统
 2. 对研究型框架来说，先保证检索链路稳定，比先追求最强语义泛化更重要。
 3. 一旦未来切到向量检索，只要外部接口保持稳定，上层节点不需要整体重写。
 
+### 反思的 4 步流程
+
+当你调用 `graph.reflect_and_remember(returns_losses)` 时，系统会对 Bull Researcher、Bear Researcher、Trader、Research Manager、Portfolio Manager 五个角色逐一执行反思。每个角色的反思过程分为 4 个精确步骤：
+
+| 步骤 | 名称 | 目的 |
+| ---- | ---- | ---- |
+| 1 | Reasoning | 判断该角色的决策是否正确（正确 = 收益增加），分析各因素权重 |
+| 2 | Improvement | 对错误决策提出具体的改进建议 |
+| 3 | Summary | 总结经验教训，建立跨场景的联系 |
+| 4 | Query | 将反思结论提炼为不超过 1000 token 的精炼摘要，存入 BM25 记忆库 |
+
+反思的输入是当前市场状况（由 4 份 Analyst 报告拼接而成）加上实际收益或亏损值。反思输出以 `(当前状况, 反思结论)` 对的形式写入各角色的独立记忆实例。后续运行时，角色通过 `memory.get_memories(curr_situation, n_matches=2)` 检索最相似的 2 个历史场景，将反思结论注入分析上下文。
+
+### 各角色在辩论中的精确读写关系
+
+理解辩论流程的关键在于知道每个角色从状态中读取什么、写回什么。以下是研究辩论阶段的精确数据流：
+
+**Bull Researcher**：
+- 读取：4 份 Analyst 报告（拼接为 `curr_situation`）、BM25 记忆中的 2 条相似历史
+- 写回：`investment_debate_state.bull_history`（追加发言）、`investment_debate_state.current_response`（设为当前发言）、`investment_debate_state.count`（+1）
+
+**Bear Researcher**：
+- 读取：4 份 Analyst 报告（拼接为 `curr_situation`）、BM25 记忆中的 2 条相似历史、`bull_history` 中的最新发言（用于反驳）
+- 写回：`investment_debate_state.bear_history`（追加发言）、`investment_debate_state.current_response`（设为当前发言）、`investment_debate_state.count`（+1）
+
+**Research Manager**：
+- 读取：完整辩论历史（`investment_debate_state.history`）、BM25 记忆中的 2 条相似历史
+- 写回：`investment_debate_state.judge_decision`（裁决文本）、`investment_plan`（投资计划——与 `judge_decision` 内容相同，都来自同一个 LLM 响应）
+
+**Trader**：
+- 读取：`investment_plan`、4 份 Analyst 报告（拼接为 `curr_situation`）、BM25 记忆中的 2 条相似历史
+- 写回：`trader_investment_plan`（执行计划）、`sender`（设为 `"Trader"`）
+
+**Portfolio Manager**：
+- 读取：`trader_investment_plan`（作为 `trader_plan`）、完整风险辩论历史（`risk_debate_state.history`）、BM25 记忆中的 2 条相似历史
+- 写回：`risk_debate_state.judge_decision`（裁决）、`final_trade_decision`（最终决策文本）
+
 ## 完整工作流：从信息收集到最终拍板
 
 ```mermaid
@@ -299,7 +336,16 @@ Bull 和 Bear Researcher 不使用 ChatPromptTemplate，而是直接用 f-string
 Research Manager 和 Portfolio Manager 都承担仲裁角色：
 
 1. **Research Manager**：Prompt 要求”make a definitive decision: align with the bear analyst, the bull analyst, or choose Hold only if it is strongly justified”——避免默认 Hold 倾向，要求明确站队。
-2. **Portfolio Manager**：Prompt 定义了严格的 5 级评级体系（Buy / Overweight / Hold / Underweight / Sell），并要求输出 Rating + Executive Summary + Investment Thesis 三段式结构。
+2. **Portfolio Manager**：Prompt 定义了严格的 5 级评级体系，并要求输出 Rating + Executive Summary + Investment Thesis 三段式结构。5 级评级的精确定义如下：
+
+| 评级 | 含义 |
+| ---- | ---- |
+| **Buy** | Strong conviction to enter or add to position —— 强烈看好，建议新建或加仓 |
+| **Overweight** | Favorable outlook, gradually increase exposure —— 前景乐观，建议逐步增加敞口 |
+| **Hold** | Maintain current position, no action needed —— 维持现有仓位，无需操作 |
+| **Underweight** | Reduce exposure, take partial profits —— 前景偏弱，建议减仓或部分获利了结 |
+| **Sell** | Exit position or avoid entry —— 退出仓位或避免入场 |
+
 3. **Portfolio Manager 注入语言指令**（`get_language_instruction()`）：最终决策是用户可见输出，支持多语言。
 4. **两者都使用记忆检索**：`memory.get_memories(curr_situation, n_matches=2)`。
 
@@ -330,4 +376,4 @@ TradingAgents 的工作流哲学可以概括为一句话：先分角色收集与
 ---
 
 __文档元信息__
-难度：⭐⭐⭐ | 类型：进阶分析 | 更新日期：2026-04-01 | 预计阅读时间：45 分钟
+难度：⭐⭐⭐ | 类型：进阶分析 | 更新日期：2026-04-07 | 预计阅读时间：45 分钟
