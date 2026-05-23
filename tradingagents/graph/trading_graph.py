@@ -7,8 +7,6 @@ import json
 from datetime import datetime, timedelta
 from typing import Dict, Any, Tuple, List, Optional
 
-import yfinance as yf
-
 logger = logging.getLogger(__name__)
 
 from langgraph.prebuilt import ToolNode
@@ -25,6 +23,8 @@ from tradingagents.agents.utils.agent_states import (
     RiskDebateState,
 )
 from tradingagents.dataflows.config import set_config
+from tradingagents.market.instrument_profile import resolve_instrument_profile
+from tradingagents.market.return_resolver import fetch_returns
 
 # Import the new abstract tool methods from agent_utils
 from tradingagents.agents.utils.agent_utils import (
@@ -194,23 +194,23 @@ class TradingAgentsGraph:
     def _resolve_benchmark(self, ticker: str) -> str:
         """Pick the benchmark ticker for alpha calculation against ``ticker``.
 
-        ``config["benchmark_ticker"]`` overrides everything when set; otherwise
-        the suffix map matches the ticker's exchange suffix (e.g. ``.T`` for
-        Tokyo). US-listed tickers without a dotted suffix fall through to the
-        empty-suffix entry (SPY by default). Unrecognised suffixes (including
-        US tickers with dots like ``BRK.B``) also fall back to the empty-suffix
-        entry, which is the right default because the alpha calculation works
-        in USD.
+        Uses instrument profile to determine market-appropriate benchmark.
+        ``config["benchmark_ticker"]`` overrides everything when set.
         """
         explicit = self.config.get("benchmark_ticker")
-        if explicit:
-            return explicit
-        benchmark_map = self.config.get("benchmark_map", {})
-        ticker_upper = ticker.upper()
-        for suffix, benchmark in benchmark_map.items():
-            if suffix and ticker_upper.endswith(suffix.upper()):
-                return benchmark
-        return benchmark_map.get("", "SPY")
+        profile = resolve_instrument_profile(ticker)
+        
+        # For backward compatibility, check legacy benchmark_map for non-profile defaults
+        if not explicit and profile["market"] == "GLOBAL":
+            benchmark_map = self.config.get("benchmark_map", {})
+            ticker_upper = ticker.upper()
+            for suffix, benchmark in benchmark_map.items():
+                if suffix and ticker_upper.endswith(suffix.upper()):
+                    return benchmark
+            # Fall back to empty-suffix entry or profile default
+            return benchmark_map.get("", profile["default_benchmark"])
+        
+        return explicit or profile["default_benchmark"]
 
     def _fetch_returns(
         self, ticker: str, trade_date: str, holding_days: int = 5,
@@ -218,39 +218,21 @@ class TradingAgentsGraph:
     ) -> Tuple[Optional[float], Optional[float], Optional[int]]:
         """Fetch raw and alpha return for ticker over holding_days from trade_date.
 
+        Delegates to market-layer return_resolver which routes A-share tickers
+        to AkShare and non-A-share tickers to yfinance.
+
         ``benchmark`` is the index used as the alpha baseline (resolved by the
         caller via ``_resolve_benchmark``). Returns ``(raw_return, alpha_return,
         actual_holding_days)`` or ``(None, None, None)`` if price data is
         unavailable (too recent, delisted, or network error).
         """
-        try:
-            start = datetime.strptime(trade_date, "%Y-%m-%d")
-            end = start + timedelta(days=holding_days + 7)  # buffer for weekends/holidays
-            end_str = end.strftime("%Y-%m-%d")
-
-            stock = yf.Ticker(ticker).history(start=trade_date, end=end_str)
-            bench = yf.Ticker(benchmark).history(start=trade_date, end=end_str)
-
-            if len(stock) < 2 or len(bench) < 2:
-                return None, None, None
-
-            actual_days = min(holding_days, len(stock) - 1, len(bench) - 1)
-            raw = float(
-                (stock["Close"].iloc[actual_days] - stock["Close"].iloc[0])
-                / stock["Close"].iloc[0]
-            )
-            bench_ret = float(
-                (bench["Close"].iloc[actual_days] - bench["Close"].iloc[0])
-                / bench["Close"].iloc[0]
-            )
-            alpha = raw - bench_ret
-            return raw, alpha, actual_days
-        except Exception as e:
-            logger.warning(
-                "Could not resolve outcome for %s on %s vs %s (will retry next run): %s",
-                ticker, trade_date, benchmark, e,
-            )
-            return None, None, None
+        profile = resolve_instrument_profile(ticker)
+        return fetch_returns(
+            profile=profile,
+            trade_date=trade_date,
+            holding_days=holding_days,
+            explicit_benchmark=benchmark,
+        )
 
     def _resolve_pending_entries(self, ticker: str) -> None:
         """Resolve pending log entries for ticker at the start of a new run.

@@ -12,7 +12,7 @@ from tradingagents.llm_clients.model_catalog import get_model_options
 
 console = Console()
 
-TICKER_INPUT_EXAMPLES = "Examples: SPY, CNC.TO, 7203.T, 0700.HK"
+TICKER_INPUT_EXAMPLES = "Examples: SPY, CNC.TO, 7203.T, 0700.HK, 600519.SH, 000001.SZ"
 
 ANALYST_ORDER = [
     ("Market Analyst", AnalystType.MARKET),
@@ -47,6 +47,51 @@ def get_ticker() -> str:
 def normalize_ticker_symbol(ticker: str) -> str:
     """Normalize ticker input while preserving exchange suffixes."""
     return ticker.strip().upper()
+
+
+def expand_a_share_ticker(ticker: str, exchange: Optional[str] = None) -> str:
+    """Expand bare 6-digit China ticker codes to fully-qualified A-share symbols.
+    
+    Args:
+        ticker: The ticker symbol (e.g., "600519" or "600519.SH")
+        exchange: Optional exchange code ("SH", "SZ", "BJ") for bare 6-digit tickers
+        
+    Returns:
+        Fully-qualified ticker with exchange suffix (e.g., "600519.SH")
+        
+    Raises:
+        ValueError: If ticker is a bare 6-digit code without exchange specified
+        
+    Examples:
+        >>> expand_a_share_ticker("600519.SH")
+        '600519.SH'
+        >>> expand_a_share_ticker("600519", "SH")
+        '600519.SH'
+        >>> expand_a_share_ticker("600519")  # doctest: +SKIP
+        ValueError: Bare 6-digit ticker '600519' requires exchange parameter
+    """
+    normalized = ticker.strip().upper()
+    
+    # Already has a suffix, return as-is
+    if "." in normalized:
+        return normalized
+    
+    # Bare 6-digit China ticker code
+    if len(normalized) == 6 and normalized.isdigit():
+        if not exchange:
+            raise ValueError(
+                f"Bare 6-digit ticker '{normalized}' requires exchange parameter. "
+                f"Please specify exchange='SH', 'SZ', or 'BJ', or use the full form like '{normalized}.SH'."
+            )
+        exchange_upper = exchange.strip().upper()
+        if exchange_upper not in {"SH", "SZ", "BJ"}:
+            raise ValueError(
+                f"Invalid exchange '{exchange}'. Must be 'SH', 'SZ', or 'BJ' for A-share tickers."
+            )
+        return f"{normalized}.{exchange_upper}"
+    
+    # Not a bare 6-digit code, return as-is
+    return normalized
 
 
 def detect_asset_type(ticker: str) -> AssetType:

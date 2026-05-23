@@ -23,6 +23,10 @@ from .alpha_vantage import (
     get_global_news as get_alpha_vantage_global_news,
 )
 from .alpha_vantage_common import AlphaVantageRateLimitError
+from .akshare import (
+    get_stock_data as get_akshare_stock_data,
+    get_indicators as get_akshare_indicators,
+)
 
 # Configuration and routing logic
 from .config import get_config
@@ -63,6 +67,7 @@ TOOLS_CATEGORIES = {
 VENDOR_LIST = [
     "yfinance",
     "alpha_vantage",
+    "akshare",
 ]
 
 # Mapping of methods to their vendor-specific implementations
@@ -71,11 +76,13 @@ VENDOR_METHODS = {
     "get_stock_data": {
         "alpha_vantage": get_alpha_vantage_stock,
         "yfinance": get_YFin_data_online,
+        "akshare": get_akshare_stock_data,
     },
     # technical_indicators
     "get_indicators": {
         "alpha_vantage": get_alpha_vantage_indicator,
         "yfinance": get_stock_stats_indicators_window,
+        "akshare": get_akshare_indicators,
     },
     # fundamental_data
     "get_fundamentals": {
@@ -116,9 +123,42 @@ def get_category_for_method(method: str) -> str:
             return category
     raise ValueError(f"Method '{method}' not found in any category")
 
-def get_vendor(category: str, method: str = None) -> str:
+def detect_market(symbol: str) -> str | None:
+    """
+    Detect market from ticker symbol.
+
+    Args:
+        symbol: Stock ticker (e.g., "600519.SH", "AAPL", "7203.T")
+
+    Returns:
+        Market code (e.g., "CN_A") or None if no specific market detected
+    """
+    if not symbol:
+        return None
+
+    symbol_upper = symbol.upper()
+
+    # China A-share exchanges
+    if any(symbol_upper.endswith(suffix) for suffix in [".SH", ".SS", ".SZ", ".BJ"]):
+        return "CN_A"
+
+    return None
+
+def get_vendor(category: str, method: str = None, symbol: str = None) -> str:
     """Get the configured vendor for a data category or specific tool method.
-    Tool-level configuration takes precedence over category-level.
+    
+    Precedence order:
+    1. Tool-level configuration (tool_vendors)
+    2. Market-specific category configuration (market_data_vendors)
+    3. Category-level configuration (data_vendors)
+    
+    Args:
+        category: Data category (e.g., "core_stock_apis")
+        method: Optional tool method name (e.g., "get_stock_data")
+        symbol: Optional ticker symbol for market detection
+    
+    Returns:
+        Vendor name or comma-separated fallback chain
     """
     config = get_config()
 
@@ -128,13 +168,33 @@ def get_vendor(category: str, method: str = None) -> str:
         if method in tool_vendors:
             return tool_vendors[method]
 
+    # Check market-specific configuration (if symbol provided)
+    if symbol:
+        market = detect_market(symbol)
+        if market:
+            market_data_vendors = config.get("market_data_vendors", {})
+            if market in market_data_vendors:
+                market_vendor = market_data_vendors[market].get(category)
+                if market_vendor:
+                    return market_vendor
+
     # Fall back to category-level configuration
     return config.get("data_vendors", {}).get(category, "default")
 
 def route_to_vendor(method: str, *args, **kwargs):
     """Route method calls to appropriate vendor implementation with fallback support."""
     category = get_category_for_method(method)
-    vendor_config = get_vendor(category, method)
+    
+    # Extract symbol from args/kwargs for market detection
+    symbol = None
+    if args:
+        symbol = args[0]  # First positional arg is typically the symbol
+    elif "ticker" in kwargs:
+        symbol = kwargs["ticker"]
+    elif "symbol" in kwargs:
+        symbol = kwargs["symbol"]
+    
+    vendor_config = get_vendor(category, method, symbol)
     primary_vendors = [v.strip() for v in vendor_config.split(',')]
 
     if method not in VENDOR_METHODS:

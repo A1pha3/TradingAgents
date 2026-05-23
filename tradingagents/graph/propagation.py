@@ -6,6 +6,7 @@ from tradingagents.agents.utils.agent_states import (
     InvestDebateState,
     RiskDebateState,
 )
+from tradingagents.market import resolve_instrument_profile
 
 
 class Propagator:
@@ -28,6 +29,7 @@ class Propagator:
             "company_of_interest": company_name,
             "asset_type": asset_type,
             "trade_date": str(trade_date),
+            "instrument_profile": resolve_instrument_profile(company_name, asset_type),
             "past_context": past_context,
             "investment_debate_state": InvestDebateState(
                 {

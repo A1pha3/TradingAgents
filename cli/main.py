@@ -505,7 +505,7 @@ def get_user_selections():
     console.print(
         create_question_box(
             "Step 1: Ticker Symbol",
-            "Enter the exact ticker symbol to analyze, including exchange suffix when needed (examples: SPY, CNC.TO, 7203.T, 0700.HK)",
+            "Enter the exact ticker symbol to analyze, including exchange suffix when needed (examples: SPY, CNC.TO, 7203.T, 0700.HK, 600519.SH, 000001.SZ)",
             "SPY",
         )
     )
@@ -643,23 +643,28 @@ def get_ticker():
     """Get ticker symbol from user input, preserving exchange suffixes."""
     # typer.prompt strips trailing dot-suffixes on some shells (e.g. 000404.SH
     # collapses to 000404). questionary.text reads the raw line.
-    ticker = questionary.text(
-        "",
-        validate=lambda value: (
-            not value.strip()
-            or (
-                all(ch.isalnum() or ch in "._-^" for ch in value.strip())
-                and len(value.strip()) <= 32
+    while True:
+        ticker = questionary.text(
+            "",
+            validate=lambda value: (
+                not value.strip()
+                or (
+                    all(ch.isalnum() or ch in "._-^" for ch in value.strip())
+                    and len(value.strip()) <= 32
+                )
             )
-        )
-        or "Please enter a valid ticker symbol, e.g. AAPL, 000404.SZ, 0700.HK.",
-    ).ask()
+            or "Please enter a valid ticker symbol, e.g. AAPL, 000404.SZ, 0700.HK.",
+        ).ask()
 
-    if ticker is None:
-        console.print("\n[red]No ticker symbol provided. Exiting...[/red]")
-        raise typer.Exit(1)
+        if ticker is None:
+            console.print("\n[red]No ticker symbol provided. Exiting...[/red]")
+            raise typer.Exit(1)
 
-    return (ticker.strip() or "SPY").upper()
+        normalized = normalize_ticker_symbol(ticker.strip() or "SPY")
+        try:
+            return expand_a_share_ticker(normalized)
+        except ValueError as exc:
+            console.print(f"[red]{exc}. Please enter a fully qualified ticker such as 600519.SH or 000001.SZ.[/red]")
 
 
 def get_analysis_date():
