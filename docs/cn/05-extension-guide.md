@@ -45,6 +45,17 @@
 
 如果这四个问题没有提前想清楚，扩展过程通常会退化成“哪里报错修哪里”。
 
+## A 股 Phase 1 落地说明
+
+当前仓库的 A 股第一阶段支持已经落到 4 个明确位置：
+
+1. `tradingagents.market.instrument_profile` 负责把 `600519.SH` 这类 ticker 解析成结构化市场画像，并写入图状态。
+2. `tradingagents.dataflows.interface` 会对 `.SH/.SS/.SZ/.BJ` 走 `market_data_vendors["CN_A"]` 覆盖，把行情和技术指标切到 AkShare。
+3. `tradingagents.market.return_resolver` 接管反思层的 benchmark 解析与收益计算，不再让 A 股路径在回溯时偷偷掉回硬编码的 `yfinance`。
+4. CLI 对 6 位 A 股代码保持严格：用户必须提供完整交易所后缀，系统不会静默猜成 `.SH` 或 `.SZ`。
+
+这 4 个点意味着系统已经具备 A 股 **市场画像 + 数据路由 + 收益回溯 + 输入契约** 的第一条主链路，但还没有覆盖中国市场的完整基本面、公告和交易日历能力。继续扩展时，建议把新增能力仍然收敛在 market / dataflows 边界，而不是回到各个 Agent prompt 里零散打补丁。
+
 ## 扩展一：新增一个 Analyst
 
 以新增 Macro Analyst 为例，建议按下面的顺序操作。
