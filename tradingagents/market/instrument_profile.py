@@ -1,4 +1,7 @@
-from typing import TypedDict
+from typing import Literal, TypedDict
+
+
+InsiderDataSupport = Literal["full", "partial", "none"]
 
 
 class InstrumentProfile(TypedDict):
@@ -13,7 +16,7 @@ class InstrumentProfile(TypedDict):
     lot_size: int
     price_limit_rule: str
     supports_fundamentals: bool
-    supports_insider_data: str
+    supports_insider_data: InsiderDataSupport
 
 
 _A_SHARE_SUFFIXES = {
