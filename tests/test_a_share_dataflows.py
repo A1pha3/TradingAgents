@@ -5,14 +5,18 @@ import unittest
 from unittest.mock import Mock, patch
 
 import pytest
+import pandas as pd
 
 import tradingagents.default_config as default_config
 from tradingagents.dataflows.config import get_config, set_config
 from tradingagents.dataflows.interface import (
+    VENDOR_METHODS,
     get_vendor,
     route_to_vendor,
     detect_market,
 )
+from tradingagents.dataflows.akshare import get_indicators as get_akshare_indicators
+from tradingagents.dataflows.akshare import get_stock_data as get_akshare_stock_data
 
 
 @pytest.mark.unit
@@ -130,18 +134,16 @@ class AShareRouteToVendorTests(unittest.TestCase):
 
     def test_route_to_vendor_dispatches_to_akshare(self):
         """route_to_vendor should dispatch A-share symbols to akshare."""
-        from tradingagents.dataflows.interface import VENDOR_METHODS
-        
         # Create mock for akshare
         mock_akshare = Mock(return_value=Mock())
-        
+
         # Temporarily replace akshare implementation
         original_impl = VENDOR_METHODS["get_stock_data"]["akshare"]
         VENDOR_METHODS["get_stock_data"]["akshare"] = mock_akshare
-        
+
         try:
             route_to_vendor("get_stock_data", "600519.SH", start_date="2024-01-01", end_date="2024-01-31")
-            
+
             mock_akshare.assert_called_once()
             args = mock_akshare.call_args[0]
             self.assertEqual(args[0], "600519.SH")
@@ -151,22 +153,85 @@ class AShareRouteToVendorTests(unittest.TestCase):
 
     def test_route_to_vendor_us_symbol_uses_yfinance(self):
         """Non-A-share symbols should still use yfinance."""
-        from tradingagents.dataflows.interface import VENDOR_METHODS
-        
         # Create mock for yfinance
         mock_yfinance = Mock(return_value=Mock())
-        
+
         # Temporarily replace yfinance implementation
         original_impl = VENDOR_METHODS["get_stock_data"]["yfinance"]
         VENDOR_METHODS["get_stock_data"]["yfinance"] = mock_yfinance
-        
+
         try:
             route_to_vendor("get_stock_data", "AAPL", start_date="2024-01-01", end_date="2024-01-31")
-            
+
             mock_yfinance.assert_called_once()
         finally:
             # Restore original implementation
             VENDOR_METHODS["get_stock_data"]["yfinance"] = original_impl
+
+    def test_route_to_vendor_dispatches_indicator_call_to_akshare_signature(self):
+        """A-share indicator routing should preserve the existing vendor signature."""
+        mock_akshare = Mock(return_value="ok")
+        original_impl = VENDOR_METHODS["get_indicators"]["akshare"]
+        VENDOR_METHODS["get_indicators"]["akshare"] = mock_akshare
+
+        try:
+            result = route_to_vendor(
+                "get_indicators",
+                "600519.SH",
+                "rsi",
+                "2024-01-31",
+                5,
+            )
+            self.assertEqual(result, "ok")
+            mock_akshare.assert_called_once_with("600519.SH", "rsi", "2024-01-31", 5)
+        finally:
+            VENDOR_METHODS["get_indicators"]["akshare"] = original_impl
+
+
+@pytest.mark.unit
+class AkShareImplementationTests(unittest.TestCase):
+    """Test the concrete AkShare vendor helpers with mocked AkShare data."""
+
+    def _mock_hist(self):
+        return pd.DataFrame(
+            {
+                "日期": pd.date_range("2024-01-20", periods=12, freq="D"),
+                "开盘": [10 + i for i in range(12)],
+                "收盘": [10.5 + i for i in range(12)],
+                "最高": [11 + i for i in range(12)],
+                "最低": [9.5 + i for i in range(12)],
+                "成交量": [1000 + i * 10 for i in range(12)],
+            }
+        )
+
+    @patch("akshare.stock_zh_a_hist")
+    def test_get_stock_data_formats_csv_payload(self, mock_hist):
+        mock_hist.return_value = self._mock_hist()
+
+        result = get_akshare_stock_data("600519.SH", "2024-01-20", "2024-01-31")
+
+        self.assertIn("# Stock data for 600519.SH from 2024-01-20 to 2024-01-31", result)
+        self.assertIn("Open,High,Low,Close,Volume", result)
+        mock_hist.assert_called_once_with(
+            symbol="600519",
+            period="daily",
+            start_date="20240120",
+            end_date="20240131",
+            adjust="qfq",
+        )
+
+    @patch("akshare.stock_zh_a_hist")
+    def test_get_indicators_uses_existing_vendor_signature(self, mock_hist):
+        mock_hist.return_value = self._mock_hist()
+
+        result = get_akshare_indicators("600519.SH", "rsi", "2024-01-31", 5)
+
+        self.assertIn("## rsi values from 2024-01-26 to 2024-01-31", result)
+        self.assertIn("RSI: Measures momentum", result)
+
+    def test_get_stock_data_rejects_unqualified_symbol(self):
+        with self.assertRaises(ValueError):
+            get_akshare_stock_data("600519", "2024-01-20", "2024-01-31")
 
 
 @pytest.mark.unit
