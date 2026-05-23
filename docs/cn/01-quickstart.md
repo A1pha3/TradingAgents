@@ -14,29 +14,9 @@
 
 # TradingAgents 快速开始
 
-## 这篇文档解决什么问题
+这篇文档的目标：让你在最短时间内跑通 TradingAgents，并理解"跑通"意味着什么。
 
-这篇文档只做一件事：帮助你在最短时间内成功跑通 TradingAgents，并知道“跑通”到底意味着什么。
-
-如果你现在最关心的是：
-
-1. 怎么安装。
-2. 怎么配 Key。
-3. 怎么启动 CLI。
-4. 怎么用 Python API 执行一个最小示例。
-5. 跑完之后该看哪里判断系统有没有正常工作。
-
-那么先读完这一篇，再考虑深入原理和架构。
-
-## 学习目标
-
-读完本文后，你应该能够：
-
-1. 在本地完成安装与依赖准备。
-2. 正确配置至少一组 LLM Key。
-3. 启动 CLI 并完成一次交互式分析。
-4. 通过 Python API 执行一个最小可运行示例。
-5. 找到系统输出的关键结果和日志文件。
+读完本文后，你应该能够独立完成：安装与依赖准备、LLM Key 配置、CLI 交互式分析、Python API 最小示例、以及定位输出结果和日志文件。
 
 ## 第一步：准备环境
 
@@ -79,12 +59,12 @@ export OPENROUTER_API_KEY=your_openrouter_key
 export ALPHA_VANTAGE_API_KEY=your_alpha_vantage_key
 ```
 
-常见理解误区有两个：
+关于 Key 配置，有两件事值得提前知道：
 
-1. 不是所有 Key 都必须配齐。你只配置自己要用到的供应商即可。
-2. Alpha Vantage 是数据供应商，不是 LLM 供应商。只有当你把部分数据能力切到它时才需要对应 Key。
+1. 只配置你实际要用的供应商即可，不需要全部配齐。
+2. Alpha Vantage 是数据供应商而非 LLM 供应商，只有你把数据能力切到它时才需要对应 Key。
 
-更具体地说，可以按下面的规则理解“缺哪个 Key 会发生什么”：
+下表说明缺哪个 Key 会发生什么：
 
 | 你缺少的 Key | 在什么情况下会出问题 | 典型现象 |
 | ---- | ---- | ---- |
@@ -93,7 +73,7 @@ export ALPHA_VANTAGE_API_KEY=your_alpha_vantage_key
 | ANTHROPIC_API_KEY | 你选择 anthropic 作为 llm_provider 时 | Anthropic 客户端无法创建 |
 | ALPHA_VANTAGE_API_KEY | 你把某些 data_vendors 或 tool_vendors 切到 alpha_vantage 时 | 工具调用失败或频繁回退到其他供应商 |
 
-所以"不是所有 Key 都必须配齐"不等于"可以随便缺"。你只要缺的是当前执行路径上会用到的那个 Key，系统就会在运行前或工具调用阶段报错。
+上表的结论：每个 Key 是否必须取决于你的执行路径。缺了当前路径上会用到的 Key，系统会在运行前或工具调用阶段报错。
 
 如果你使用本地 Ollama，则不需要远程模型 Key，但要确保 Ollama 服务已启动，且需要的模型已经拉取完成。
 
@@ -211,7 +191,7 @@ config["output_language"] = "中文"  # 默认为 "English"
 
 这里有一个容易踩坑的工程细节：默认配置里有 results_dir，但当前图执行落盘仍直接写入 eval_results。判断"有没有跑通"时，优先检查 eval_results，而不是只盯着 results_dir。
 
-这 4 个信号组合起来，才算真正跑通，而不是”命令执行过”。
+这 4 个信号缺一不可——缺少任何一项都说明流程中途出了问题。
 
 ### debug 模式说明
 
@@ -373,19 +353,15 @@ graph.reflect_and_remember(returns_losses=-200)
 3. 数据供应商保持默认的 yfinance。
 4. 先验证主链路稳定，再逐步增加角色和回合数。
 
-这样做的原因很直接：先验证"系统有没有正常工作"，再追求"系统能不能做更复杂的工作"。
+## CLI 与 Python API 的取舍
 
-## CLI 与 Python API 该先学哪个
-
-1. 想看系统实时进展，先学 CLI。
-2. 想把系统嵌入自己的实验脚本，先学 Python API。
-3. 第一次接触项目，先用 CLI 建立直觉，再转向 API。
+想看系统实时进展，先学 CLI。想把系统嵌入实验脚本，先学 Python API。第一次接触项目，先用 CLI 建立直觉再转向 API。
 
 ## 首次上手最常见的问题
 
 ### 启动很慢
 
-常见原因包括：
+可能的原因：
 
 1. 模型响应慢。
 2. 研究深度过高。
@@ -400,7 +376,7 @@ graph.reflect_and_remember(returns_losses=-200)
 2. 数据源是否足够稳定。
 3. 研究深度是否和模型能力匹配。
 
-如果你看到的是"有结论，但中间报告明显空洞"，常见的根因有这几类：
+如果你看到的是"有结论，但中间报告明显空洞"，常见原因：
 
 1. 模型能回答，但不擅长稳定地产生工具调用。
 2. 某个数据供应商返回为空，导致 Analyst 只能基于很弱的上下文写报告。
@@ -423,7 +399,7 @@ graph.reflect_and_remember(returns_losses=-200)
 3. 改用默认的 yfinance 供应商，排除 Alpha Vantage 限流和回退因素。
 4. 查看 [06-testing-and-evolution.md](06-testing-and-evolution.md) 中关于“静默错误”和“供应商回退”的说明。
 
-更快定位的方法是套用下面这棵诊断树：
+如果你需要更快的诊断路径：
 
 1. 一启动就报 provider 或 key 错误：先回看“第二步：配置访问凭证”。
 2. 能跑但没有稳定报告：先检查模型选择和工具调用，再看供应商数据。
@@ -435,7 +411,7 @@ graph.reflect_and_remember(returns_losses=-200)
 
 ## 完成后的下一步
 
-如果你已经跑通，建议按下面的顺序继续：
+跑通之后：
 
 1. 读 [04-usage-and-configuration.md](04-usage-and-configuration.md)，学会系统化调参。
 2. 读 [02-principles-and-workflow.md](02-principles-and-workflow.md)，理解为什么系统要这样组织多 Agent。
@@ -456,4 +432,4 @@ graph.reflect_and_remember(returns_losses=-200)
 ---
 
 __文档元信息__
-难度：⭐ | 类型：入门教程 | 更新日期：2026-04-07 | 预计阅读时间：35 分钟
+难度：⭐ | 类型：入门教程 | 更新日期：2026-05-23 | 预计阅读时间：35 分钟

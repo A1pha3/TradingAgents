@@ -12,12 +12,6 @@
 
 # TradingAgents 源码级索引
 
-## 这篇文档解决什么问题
-
-当你已经理解了项目的原理和架构，下一步通常不是继续看概念，而是进入源码。但真实问题在于：代码入口很多，文件不少，如果没有索引，你可能会在”全都看过一点，但没有真正抓住主线”的状态中打转。
-
-这篇文档的目标就是解决这个问题：告诉你先看哪些文件、每个文件负责什么、它和其他文件是什么关系，以及不同开发目标下应该从哪里切入。
-
 ## 阅读目标
 
 读完本文后，你应该能够：
@@ -29,9 +23,9 @@
 
 ## 总体阅读原则
 
-推荐遵循一个简单原则：先看“装配与流转”，再看“角色与能力”，最后看“边界与细节”。
+先看"装配与流转"，再看"角色与能力"，最后看"边界与细节"。
 
-对应到这个项目就是：
+对应到这个项目：
 
 1. 先看入口与 Graph。
 2. 再看 Agent 与状态。
@@ -39,13 +33,13 @@
 
 ## 一级入口索引
 
-| 文件 | 角色 | 为什么先看 |
+| 文件 | 角色 | 先看原因 |
 | ---- | ---- | ---- |
 | main.py | Python API 示例入口 | 展示最小调用路径 |
 | cli/main.py | CLI 交互入口 | 展示交互式运行、配置收集和实时展示 |
 | tradingagents/graph/trading_graph.py | 系统总装配入口 | 串起 graph、LLM、memory、tool node |
 
-如果你只有 10 分钟读源码，优先看这 3 个文件。
+时间有限时，优先看这 3 个文件。
 
 ## 图编排层索引
 
@@ -69,20 +63,20 @@
 5. reflection.py
 6. signal_processing.py
 
-这个顺序的理由是：先看总装配，再看结构，再看分流逻辑，最后才看辅助闭环和后处理。
+先看总装配，再看结构，再看分流逻辑，最后看辅助闭环和后处理。
 
 ## Agent 层索引
 
 ### 角色分组总览
 
-| 目录 | 说明 | 核心价值 |
+| 目录 | 说明 | 职责 |
 | ---- | ---- | ---- |
-| tradingagents/agents/analysts | 各领域分析师 | 负责生成中间分析报告 |
-| tradingagents/agents/researchers | 看多与看空研究员 | 负责制造投资观点冲突 |
-| tradingagents/agents/managers | 研究经理与组合经理 | 负责阶段裁决与最终批准 |
-| tradingagents/agents/risk_mgmt | 风险视角辩手 | 负责第二层风险讨论 |
-| tradingagents/agents/trader | 交易员 | 负责把研究结论翻译成执行计划 |
-| tradingagents/agents/utils | 工具桥接、状态、记忆 | 是 Agent 层和其他层之间的粘合区 |
+| tradingagents/agents/analysts | 各领域分析师 | 生成中间分析报告 |
+| tradingagents/agents/researchers | 看多与看空研究员 | 制造投资观点冲突 |
+| tradingagents/agents/managers | 研究经理与组合经理 | 阶段裁决与最终批准 |
+| tradingagents/agents/risk_mgmt | 风险视角辩手 | 第二层风险讨论 |
+| tradingagents/agents/trader | 交易员 | 把研究结论翻译成执行计划 |
+| tradingagents/agents/utils | 工具桥接、状态、记忆 | Agent 层与其他层之间的粘合区 |
 
 ### Analysts
 
@@ -93,7 +87,7 @@
 | tradingagents/agents/analysts/news_analyst.py | 新闻与事件分析 |
 | tradingagents/agents/analysts/fundamentals_analyst.py | 基本面与财务分析 |
 
-建议先读 market_analyst.py，因为它最能体现“Prompt + 工具 + 报告写回”的标准节点模式。
+建议先读 market_analyst.py，它最直接体现 "Prompt + 工具 + 报告写回" 的标准节点模式。
 
 ### Researchers 与 Managers
 
@@ -104,7 +98,7 @@
 | tradingagents/agents/managers/research_manager.py | 研究辩论裁决 |
 | tradingagents/agents/managers/portfolio_manager.py | 最终交易审批 |
 
-如果你想理解“为什么系统不是 Analyst 一跑完就给结论”，这一组文件最关键。
+系统不是 Analyst 一跑完就给结论——这一组文件解释了中间发生了什么。
 
 ### Risk Management 与 Trader
 
@@ -115,7 +109,7 @@
 | tradingagents/agents/risk_mgmt/conservative_debator.py | 保守风险视角 |
 | tradingagents/agents/risk_mgmt/neutral_debator.py | 中立风险视角 |
 
-这一组文件最能帮助你理解：为什么研究结论和执行批准要拆开。
+研究结论和执行批准分属两个阶段，这一组文件把理由写在了代码里。
 
 ## Agent Utils 索引
 
@@ -129,9 +123,9 @@
 | tradingagents/agents/utils/fundamental_data_tools.py | 基本面工具定义 | 看财务相关工具 |
 | tradingagents/agents/utils/news_data_tools.py | 新闻与内幕工具定义 | 看新闻相关工具 |
 
-如果你准备新增 Agent 或工具，这个目录通常比 Agent 本身更早要看。
+新增 Agent 或工具时，这个目录通常比 Agent 本身更早要看。
 
-其中最值得优先扫一眼的函数有：
+其中优先扫一眼的函数：
 
 1. `agent_states.py:50` 的 `AgentState`，用来确认状态契约到底有哪些字段。
 2. `agent_utils.py:45` 的 `create_msg_delete`，用来理解 Analyst 阶段结束后的消息清理策略。
@@ -141,7 +135,7 @@
 
 ## 数据流层索引
 
-### 最关键的 3 个文件
+### 核心文件
 
 | 文件 | 负责什么 | 关键函数 |
 | ---- | ---- | ---- |
@@ -162,9 +156,9 @@
 | tradingagents/dataflows/yfinance_news.py | yfinance 新闻实现 | `get_news_yfinance`, `get_global_news_yfinance` |
 | tradingagents/dataflows/stockstats_utils.py | 技术指标辅助计算 | 内部工具函数 |
 
-如果你要新增供应商，从 interface.py 开始，比直接看具体实现文件更高效。
+新增供应商时，从 interface.py 开始，比直接看具体实现文件更高效。
 
-读 interface.py 时，建议优先抓住 3 个核心数据结构：
+读 interface.py 时优先抓住 3 个核心数据结构：
 
 1. **`TOOLS_CATEGORIES`**：定义工具分组（core_stock_apis、technical_indicators、fundamental_data、news_data）
 2. **`VENDOR_METHODS`**：定义每个工具方法到供应商实现的映射
@@ -182,9 +176,9 @@
 | tradingagents/llm_clients/validators.py | 模型合法性校验 |
 | tradingagents/llm_clients/model_catalog.py | CLI 模型选项目录（按 provider 和模式分组的可选模型列表） |
 
-如果你只准备切模型配置，不一定要读这些文件；但如果你要接新 Provider，这一层是主战场。
+只准备切模型配置时，不一定要读这些文件；接新 Provider 时，这一层是主战场。
 
-其中 base_client.py 不只是”抽象父类”。它还定义了 normalize_content，这个函数会把部分 provider 返回的内容块压平成纯文本，是多 provider 稳定运行的关键兼容层。
+base_client.py 承担两个角色：一是抽象父类，二是通过 normalize_content 把部分 provider 返回的内容块压平成纯文本——这是多 provider 稳定运行的关键兼容层。
 
 ### 关键代码片段速查
 
@@ -256,7 +250,7 @@ return {
 | cli/announcements.py | 公告获取与展示 |
 | cli/config.py | CLI 自身配置 |
 
-如果你做的是“新增一个可在 CLI 中选择的能力”，至少要看 cli/main.py 和 cli/models.py。
+做“新增一个可在 CLI 中选择的能力”时，至少要看 cli/main.py 和 cli/models.py。
 
 ## 测试入口索引
 
@@ -266,7 +260,7 @@ return {
 | tests/test_model_validation.py | 保护模型校验目录与 warning 逻辑 |
 | tests/test_google_api_key.py | 保护 Google Provider 的 api_key 兼容行为 |
 
-当前测试规模不大，所以如果你改的是 graph、provider、dataflow 或 CLI 映射，建议自己主动补验证，而不要依赖现有测试兜底。
+当前测试规模不大，改 graph、provider、dataflow 或 CLI 映射时，需要自己主动补验证，而不是依赖现有测试兜底。
 
 ## 按目标选择阅读顺序
 
@@ -310,14 +304,14 @@ return {
 
 ## 最后建议
 
-看源码时，最容易犯的错误是“按目录顺序从上往下扫”。更有效的方法是：先围绕你的问题，按链路看文件。
+看源码时，最常见的错误是按目录顺序从上往下扫。更有效的方法是：先围绕你的问题，按链路看文件。
 
 例如：
 
-1. 想知道结果怎么出来，就沿着入口到 graph 再到 state 看。
-2. 想知道数据怎么进来，就沿着 Agent 工具到 dataflows.interface 看。
-3. 想知道为什么某个节点停不下来，就直接去 conditional_logic.py 和 setup.py。
-4. 想知道为什么某个 ticker 被改坏了，就去 build_instrument_context 和对应测试看。
+1. 想知道结果怎么出来 → 沿着入口到 graph 再到 state 看。
+2. 想知道数据怎么进来 → 沿着 Agent 工具到 dataflows.interface 看。
+3. 想知道为什么某个节点停不下来 → 直接去 conditional_logic.py 和 setup.py。
+4. 想知道为什么某个 ticker 被改坏 → 去 build_instrument_context 和对应测试看。
 
 ## 常见问题到源码路径速查
 
@@ -331,9 +325,9 @@ return {
 
 ## 关联阅读
 
-1. 如果你还没有建立架构全景，先回到 [03-architecture.md](03-architecture.md)。
-2. 如果你准备真正动手扩展，接着读 [05-extension-guide.md](05-extension-guide.md)。
-3. 如果你更喜欢一次性阅读全貌，可以读 [tradingagents-complete-guide.md](tradingagents-complete-guide.md)。
+1. 还没有建立架构全景 → 先回到 [03-architecture.md](03-architecture.md)。
+2. 准备真正动手扩展 → 接着读 [05-extension-guide.md](05-extension-guide.md)。
+3. 偏好一次性阅读全貌 → 读 [tradingagents-complete-guide.md](tradingagents-complete-guide.md)。
 
 ## 源码导航自测
 
@@ -345,4 +339,4 @@ return {
 ---
 
 __文档元信息__
-难度：⭐⭐⭐⭐ | 类型：源码索引 | 更新日期：2026-04-07 | 预计阅读时间：35 分钟
+难度：⭐⭐⭐⭐ | 类型：源码索引 | 更新日期：2026-05-23 | 预计阅读时间：35 分钟

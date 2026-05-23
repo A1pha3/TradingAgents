@@ -13,17 +13,26 @@
 
 # TradingAgents 使用说明与配置详解
 
-## 本文重点
+## 学习目标
 
-如果说快速开始解决的是“怎么跑起来”，那么这篇文档解决的是“跑起来之后怎么用得更稳、更准、更可控”。
+读完这篇文档后，你应该能够：
 
-重点包括：
+- 根据场景选择 CLI 或 Python API
+- 理解 `default_config.py` 中每个关键字段的作用边界
+- 为 OpenRouter、Ollama 等非官方端点配置 `backend_url`
+- 按分层调参法设计可对比的实验，而不是一次改动多个变量
 
-1. CLI 与 Python API 分别适合什么场景。
-2. 默认配置里的关键字段各自影响什么。
-3. 如何调整模型、数据供应商、输出语言和辩论轮数。
-4. 如何配置后端地址以适配 OpenRouter、Ollama 等非官方端点。
-5. 实验时应该如何做对比，而不是盲目堆复杂度。
+为帮助理解，以下是各配置字段的一个快速对比：
+
+| 字段 | 改什么 | 不改什么 |
+| ---- | ---- | ---- |
+| `llm_provider` | 模型供应商 | Agent 逻辑 |
+| `backend_url` | API 端点地址 | 供应商选择 |
+| `deep_think_llm` / `quick_think_llm` | 节点用哪个模型 | 节点自身的行为 |
+| `output_language` | 用户可见输出语言 | 内部辩论语言 |
+| `max_debate_rounds` / `max_risk_discuss_rounds` | 辩论深度 | 辩论规则 |
+| `data_vendors` / `tool_vendors` | 数据来源 | 工具定义 |
+| `max_recur_limit` | 图执行上限 | 结论质量 |
 
 ## 使用方式概览
 
@@ -36,7 +45,7 @@ CLI 适合：
 3. 人工监督中间结果。
 4. 演示系统工作方式。
 
-它的强项是可视化反馈更好，便于建立对系统流程的直觉。
+优势是可视化反馈更直观，便于快速理解系统流程。
 
 ### Python API 适合什么场景
 
@@ -47,7 +56,7 @@ Python API 适合：
 3. 接入自己的回测或评估框架。
 4. 程序化比较多个配置版本。
 
-它的强项是自动化程度更高，便于做可重复实验。
+优势是自动化程度高，适合可重复实验。
 
 ## CLI 的关键选择项
 
@@ -313,31 +322,31 @@ config["tool_vendors"] = {
 
 这种方式适合在数据质量与可用性之间做更细粒度的平衡。
 
-## 使用策略建议
+## 配置策略
 
-### 第一步：先验证稳定性
+### 第一步：验证稳定性
 
-不要刚开始就追求“最强配置”。先确认：
+先确认三个基础条件：
 
 1. 模型能稳定调用。
 2. 数据源能稳定返回。
 3. 图能完整收敛。
 
-### 第二步：再追求信息充分性
+### 第二步：追求信息充分性
 
-稳定之后，再增加：
+稳定之后逐步增加：
 
-1. Analyst 数量。
+1. 分析师数量。
 2. 辩论轮数。
-3. 更强 deep_think_llm。
+3. 更强的 `deep_think_llm`。
 
-### 第三步：最后做供应商与成本优化
+### 第三步：供应商与成本优化
 
-当你已经有一个相对稳定的基线配置时，再去优化成本、吞吐和回退链，效率会更高。
+已有稳定基线后，再优化成本、吞吐和回退链。
 
-如果你只有一组可用 API Key，建议优先把它花在最稳定的主路径上，而不是同时追求“多供应商”“多模型”“高轮数”三件事。对大多数用户来说，单供应商 + 低轮数 + 清晰日志，比复杂但难复现实验更有价值。
+如果只有一组可用 API Key，优先保证主路径的稳定性。单供应商 + 低轮数 + 清晰日志，好过复杂但难复现的实验。
 
-## Python API 的一个推荐模式
+## Python API 推荐模式
 
 ```python
 from tradingagents.graph.trading_graph import TradingAgentsGraph
@@ -358,7 +367,7 @@ final_state, decision = graph.propagate("AAPL", "2024-05-10")
 print(decision)
 ```
 
-这个模式比直接修改全局默认配置更稳，因为实验配置的意图更显式。
+与直接修改全局默认配置相比，显式传入 `config` 副本能让每次实验的配置意图更清晰。
 
 ## Callbacks 回调机制
 
@@ -474,9 +483,9 @@ config["max_risk_discuss_rounds"] = 3
 config["max_recur_limit"] = 200
 ```
 
-要点：所有节点都使用最强模型，推理力度调至最高，辩论轮数增加以获得更充分的讨论。注意 token 消耗会显著增加，建议配合 `StatsCallbackHandler` 监控成本。
+要点：所有节点都使用最强模型，推理力度调至最高，辩论轮数增加以获得更充分的讨论。token 消耗会显著增加，建议配合 `StatsCallbackHandler` 监控成本。
 
-## 端到端使用场景 walkthrough
+## 端到端使用场景
 
 ### 场景五：批量多标的快速对比
 
@@ -549,7 +558,7 @@ state3, decision3 = graph.propagate("NVDA", "2024-07-10")
 print(f"第三轮决策: {decision3}")
 ```
 
-要点：记忆反馈的核心是 `returns_losses` 参数——正数表示盈利，负数表示亏损。系统会对 5 个角色（Bull/Bear Researcher、Trader、Research Manager、Portfolio Manager）分别反思，将市场环境和反思结论存入各自的 BM25 记忆库。后续运行时自动检索相似历史场景。
+要点：`returns_losses` 参数中正数表示盈利，负数表示亏损。系统对 5 个角色（Bull/Bear Researcher、Trader、Research Manager、Portfolio Manager）分别反思，将市场环境和反思结论存入各自的 BM25 记忆库。后续运行时自动检索相似历史场景。
 
 ### 场景七：接入回测框架的集成模式
 
@@ -600,44 +609,48 @@ with open("backtest_signals.json", "w") as f:
 3. 同时更换多个变量，导致实验结果不可解释。
 4. 以为改了 results_dir 就能改变全部输出路径。
 
-## 一套推荐的实验记录模板
+## 实验记录模板
 
-为了让你的实验可比较，建议每次至少记录以下信息：
+每次实验至少记录：
 
 1. 标的与日期。
-2. selected_analysts。
-3. quick_think_llm 与 deep_think_llm。
-4. max_debate_rounds 与 max_risk_discuss_rounds。
-5. data_vendors 与 tool_vendors。
+2. `selected_analysts`。
+3. `quick_think_llm` 与 `deep_think_llm`。
+4. `max_debate_rounds` 与 `max_risk_discuss_rounds`。
+5. `data_vendors` 与 `tool_vendors`。
 6. 最终决策和关键中间报告摘要。
 
-这样做是为了后续复盘时能追溯结论的形成过程，而不是只剩一个 BUY 或 SELL 标签。
+实验迭代固定为一轮只改一个变量：
 
-进一步地，建议把实验迭代固定成一轮只改一个变量：
-
-1. 先固定 Analyst 组合和轮数，比较不同模型。
+1. 先固定分析师（Analyst）组合和轮数，比较不同模型。
 2. 再固定模型，只比较数据供应商或回退链。
 3. 最后在已有基线之上调整辩论轮数。
 
-如果你一轮实验同时改 3 个变量，得到的不是“结论”，而是新的解释难题。
+如果你一轮实验同时改 3 个变量，得到的不是"结论"，而是新的解释难题。
 
 ## 小结
 
-正确使用 TradingAgents 的关键，不在于找到某个“神奇配置”，而在于建立一套可比较、可复现、可解释的配置方法。
+配置 TradingAgents 的本质是建立可比较的实验方法。每轮只改一个变量，记录完整的配置快照和中间报告摘要。后续复盘时能追溯结论形成过程，而不是只剩一个 BUY 或 SELL 标签。
+
+## 自测问题
+
+1. `output_language` 只影响用户可见输出还是会影响内部辩论？设计上为什么这样区分？
+2. `data_vendors` 和 `tool_vendors` 的优先级关系是什么？逗号分隔的回退链会如何执行？
+3. `max_recur_limit` 与 `max_debate_rounds` 分别控制什么？为什么不能压低 `max_recur_limit` 来替代降低辩论轮数？
+4. 如果你同时调整了 `deep_think_llm` 和 `max_debate_rounds`，结果变好了——你怎么判断是哪个改动起的作用？
 
 ## 自测检查清单
 
-- [ ] 我知道 llm_provider、quick_think_llm 和 deep_think_llm 分别解决什么问题。
-- [ ] 我知道 backend_url 的作用，以及如何配置 OpenRouter 或 Ollama。
-- [ ] 我知道 output_language 只影响用户可见输出，不影响内部辩论。
-- [ ] 我知道 Provider 专属参数（google_thinking_level、openai_reasoning_effort、anthropic_effort）各自对应哪个供应商。
-- [ ] 我知道 data_vendors 和 tool_vendors 的优先级关系。
-- [ ] 我知道 max_debate_rounds、max_risk_discuss_rounds 和 max_recur_limit 各自控制什么。
-- [ ] 我知道回退链不是”任何失败都会自动切换”。
+- [ ] 我知道 `llm_provider`、`quick_think_llm` 和 `deep_think_llm` 分别解决什么问题。
+- [ ] 我知道 `backend_url` 的作用，以及如何配置 OpenRouter 或 Ollama。
+- [ ] 我知道 `output_language` 只影响用户可见输出，不影响内部辩论。
+- [ ] 我知道 Provider 专属参数（`google_thinking_level`、`openai_reasoning_effort`、`anthropic_effort`）各自对应哪个供应商。
+- [ ] 我知道 `data_vendors` 和 `tool_vendors` 的优先级关系。
+- [ ] 我知道 `max_debate_rounds`、`max_risk_discuss_rounds` 和 `max_recur_limit` 各自控制什么。
+- [ ] 我知道回退链不是"任何失败都会自动切换"。
 - [ ] 我知道一次实验最好只改一个变量。
 - [ ] 我知道如何使用 callbacks 追踪 LLM 调用次数和 token 消耗。
 
 ---
-
 __文档元信息__
-难度：⭐⭐⭐ | 类型：核心概念 | 更新日期：2026-04-07 | 预计阅读时间：50 分钟
+难度：⭐⭐⭐ | 类型：核心概念 | 更新日期：2026-05-23 | 预计阅读时间：50 分钟
