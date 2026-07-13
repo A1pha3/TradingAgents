@@ -80,7 +80,7 @@ flowchart TD
 
 数据来源：`factory.py:34-54`（原生 4 个）、`openai_client.py:212-233`（兼容 16 个）、`api_key_env.py:14-44`（环境变量映射）。
 
-**关于计数的一个说明。** 项目 README 和早期文档曾将 provider 数记为「15 兼容 + 4 原生 = 19」，但源码里 `OPENAI_COMPATIBLE_PROVIDERS`（`openai_client.py:212-233`）和 `PROVIDER_API_KEY_ENV`（`api_key_env.py:14-44`）实际各注册了 16 个兼容 provider，合计 20 个。本文以源码为准。
+**关于计数的口径差异。** 注册表层面（`OPENAI_COMPATIBLE_PROVIDERS` 16 个 + 原生 4 个 = 20）和 CLI 交互菜单层面（`_llm_provider_table` 17 个条目）数字不同：CLI 把 Qwen / GLM / MiniMax 的国际端点和中国端点合并成一项展示（选完再二级选择区域），所以菜单项比注册表少 3 个。本文的对照表按注册表口径列出 20 个 provider。
 
 表里有三个关键看点。第一，只有 3 个兼容 provider 用了定制子类（`DeepSeekChatOpenAI`、`MinimaxChatOpenAI`、`LocalCompatibleChatOpenAI`），其余 13 个共享同一个 `NormalizedChatOpenAI`——这就是「声明式注册表」的红利。第二，双区域 provider（`qwen`/`glm`/`minimax`）各保留独立端点和独立密钥，国际账户和中国账户不互通（issue #758，`openai_client.py:210-211`）。第三，`ollama` 和 `openai_compatible` 是 key 可选的，本地无鉴权服务器不用配密钥。
 
@@ -253,7 +253,7 @@ MiniMax M2.x 推理模型默认把 `<think>...</think>` 块直接嵌在 `message
 
 `capabilities.py` 是整个客户端层里唯一知道「哪个模型 ID 拒绝哪个参数、需要哪种结构化输出方法」的地方。client 子类查 `get_capabilities(model_name)`，而不是硬编码模型名的 `if` 阶梯。新增一个模型（或新的 provider 怪癖），改的是这张表，不是 client 代码。
 
-### `ModelCapabilities` 五个字段
+### `ModelCapabilities` 六个字段
 
 `capabilities.py:29-45`：
 
@@ -270,7 +270,7 @@ class ModelCapabilities:
 
 前四个字段决定结构化输出怎么做。后两个字段是 provider 怪癖的开关——它们和子类里的定制代码一一对应：`requires_reasoning_content_roundtrip` 对应 `DeepSeekChatOpenAI` 的往返逻辑，`requires_reasoning_split` 对应 `MinimaxChatOpenAI` 的 extra_body 注入。
 
-### 三档能力配置
+### 四组能力预设
 
 `capabilities.py:54-90` 定义了四组预设。挑三组关键的看：
 
@@ -420,7 +420,7 @@ Responses API（`/v1/responses`）只存在于原生 OpenAI。如果用户把 `o
 
 **Bedrock**（`bedrock_client.py`）。懒加载 langchain-aws（不预载重 SDK）。双认证：`AWS_BEARER_TOKEN_BEDROCK`（ bearer token）或标准 AWS 凭证链（access key / secret key / role）。默认区域 `us-west-2`。`api_key_env.py:20` 把 bedrock 的 key 环境变量标为 `None`，因为它走的是 AWS 凭证链，不是单一 key。
 
-**Azure**（`azure_client.py`）。用 4 个环境变量（`AZURE_OPENAI_API_KEY`、`AZURE_OPENAI_ENDPOINT`、`AZURE_OPENAI_API_VERSION`、`AZURE_OPENAI_DEPLOYMENT`）。`validate_model` 恒返回 `True`——Azure 上模型名是用户自己部署的 deployment 名，框架无法预判合法性，所以不做校验。
+**Azure**（`azure_client.py`）。用 4 个环境变量（`AZURE_OPENAI_API_KEY`、`AZURE_OPENAI_ENDPOINT`、`OPENAI_API_VERSION`、`AZURE_OPENAI_DEPLOYMENT_NAME`）。`validate_model` 恒返回 `True`——Azure 上模型名是用户自己部署的 deployment 名，框架无法预判合法性，所以不做校验。
 
 ---
 

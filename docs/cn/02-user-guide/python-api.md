@@ -60,7 +60,7 @@ ta.propagate(company_name, trade_date, asset_type="stock")
 返回值是一个元组 `(final_state, decision_signal)`：
 
 - `final_state`：完整状态字典，包含四份分析师报告、辩论历史、交易员计划、风险讨论、最终决策等全部字段
-- `decision_signal`：从 `final_state["final_trade_decision"]` 里抽出的精简信号，通常是 `"买入"` / `"卖出"` / `"持有"` 这类动作
+- `decision_signal`：从 `final_state["final_trade_decision"]` 里抽出的精简信号，通常是 `Buy` / `Overweight` / `Hold` / `Underweight` / `Sell` 之一
 
 如果你只关心结论，像上面那样用 `_` 丢掉 `final_state` 即可；想要报告内容就保留它。
 

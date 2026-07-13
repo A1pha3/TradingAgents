@@ -76,7 +76,7 @@ flowchart TD
     TOP --> RDS
 ```
 
-三层之间是包含关系。顶层 15 个字段（含继承的 messages），两个子状态分别有 6 和 11 个字段。每个字段都对应一个或多个节点的产出。
+三层之间是包含关系。顶层 16 个字段（含继承的 messages），两个子状态分别有 6 和 10 个字段。每个字段都对应一个或多个节点的产出。
 
 ## 顶层 AgentState：流水线的公共总线
 
@@ -169,7 +169,7 @@ class RiskDebateState(TypedDict):
     count: Annotated[int, "Length of the current conversation"]
 ```
 
-11 个字段，三方辩论的字段更多：
+10 个字段，三方辩论的字段更多：
 
 - 三个独立的 `*_history`：每方累积自己的发言
 - `history`：三方合并发言
@@ -270,7 +270,7 @@ new_risk_debate_state = {
 
 ## 结构化输出 Schema：另一个状态契约
 
-除了状态字段，TradingAgents 还有一套 Pydantic schema 定义结构化输出的形态。`schemas.py` 定义了 5 个 schema，分别对应不同 agent 的输出：
+除了状态字段，TradingAgents 还有一套 Pydantic schema 定义结构化输出的形态。`schemas.py` 定义了 4 个 schema，分别对应不同 agent 的输出：
 
 | Schema | 使用者 | 字段 |
 |--------|--------|------|

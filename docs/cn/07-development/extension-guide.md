@@ -228,7 +228,7 @@ ANALYST_NODE_SPECS: dict[str, AnalystNodeSpec] = {
 }
 ```
 
-五个字段必须全填，并且 `tool_node` 的值（`"tools_flow"`）要和 `setup.py` 里 `workflow.add_node(spec.tool_node, self.tool_nodes[spec.key])` 自动拼出来的节点名对得上——它是字符串 `"tools_" + key`。
+五个字段必须全填，并且 `tool_node` 的值（`"tools_flow"`）要和 `setup.py` 里 `workflow.add_node(spec.tool_node, self.tool_nodes[spec.key])` 自动拼出来的节点名对得上——它是 `spec.tool_node` 字段的值（约定写成 `tools_{key}`）。
 
 ### 步骤 5：在 `AgentState` 加字段
 

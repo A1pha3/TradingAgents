@@ -203,7 +203,7 @@ Save the complete report to disk? [Y/n]: Y
 输入 `Y` 保存。报告会写到默认路径：
 
 ```
-~/.tradingagents/logs/reports/NVDA_20260713_193015/
+./reports/NVDA_20260713_193015/
 ├── complete_report.md          # 合并版完整报告
 ├── 1_analysts/                 # 四个分析师报告
 │   ├── market.md
@@ -223,7 +223,7 @@ Save the complete report to disk? [Y/n]: Y
 `tradingagents analyze` 命令最后会在终端打印一行：
 
 ```
-Final Decision: BUY
+Final Decision: Buy
 ```
 
 这是从 `final_trade_decision` 文本里提取的 5 级评级信号。5 级体系：
@@ -244,11 +244,11 @@ Final Decision: BUY
 
 | 路径 | 内容 | 说明 |
 |------|------|------|
-| `~/.tradingagents/logs/reports/{TICKER}_{时间戳}/` | 完整报告树 | 每次分析一个目录 |
+| `./reports/{TICKER}_{时间戳}/`（当前工作目录下） | 完整报告树 | 每次分析一个目录 |
 | `~/.tradingagents/logs/{TICKER}/{日期}/` | 运行日志、消息记录 | 调试用 |
 | `~/.tradingagents/cache/` | 数据缓存（OHLCV 等） | 加速重复查询 |
 | `~/.tradingagents/memory/trading_memory.md` | 记忆日志 | 历史决策和反思，详见 [记忆系统](../06-internals/memory-system.md) |
-| `~/.tradingagents/checkpoints/{TICKER}.db` | Checkpoint（如启用） | 断点续跑用 |
+| `~/.tradingagents/cache/checkpoints/{TICKER}.db` | Checkpoint（如启用） | 断点续跑用 |
 
 这些都是可配置的，详见 [配置参考](../02-user-guide/configuration.md)。
 

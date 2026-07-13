@@ -198,7 +198,7 @@ LLM 结构化输出（让模型按 schema 填字段）的入口。
 |---------|-----------|---------|
 | 共享 fixture（防 CI 无 key 卡住） | `tests/conftest.py` | `_dummy_api_keys`（L32）、`_isolate_config`（L40）、`mock_llm_client`（L59）、`pytest_configure`（L9） |
 
-测试套件的整体设计、按主题分组的 54 个测试文件清单、运行方式见 [测试体系](./testing.md)。
+测试套件的整体设计、按主题分组的 51 个测试文件清单、运行方式见 [测试体系](./testing.md)。
 
 ---
 

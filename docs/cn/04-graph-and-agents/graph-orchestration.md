@@ -119,7 +119,7 @@ class AnalystNodeSpec:
 
 `build_analyst_execution_plan`（`analyst_execution.py:56-69`）接受用户选定的分析师列表，按顺序生成执行计划。传入未知 key 会立刻 `raise ValueError`，避免图编译到一半才崩。空列表也拒绝。
 
-### 3. 固定的 7 个非分析师节点
+### 3. 固定的 8 个非分析师节点
 
 `setup.py:104-111` 注册辩论与决策节点：
 
@@ -134,7 +134,7 @@ workflow.add_node("Conservative Analyst", conservative_analyst)
 workflow.add_node("Portfolio Manager", portfolio_manager_node)
 ```
 
-这些节点不依赖工具循环、不需要消息清理，所以单独注册即可。注意 `Research Manager` 和 `Portfolio Manager` 用的是 `deep_thinking_llm`，其余 5 个用 `quick_thinking_llm`。LLM 档位的分配反映了角色的判断深度：裁判要给出最终评级，用更强的模型；辩手和分析家用更快的模型，因为它们要么是反复迭代、要么要调多次工具。
+这些节点不依赖工具循环、不需要消息清理，所以单独注册即可。注意 `Research Manager` 和 `Portfolio Manager` 用的是 `deep_thinking_llm`，其余 6 个用 `quick_thinking_llm`。LLM 档位的分配反映了角色的判断深度：裁判要给出最终评级，用更强的模型；辩手和分析家用更快的模型，因为它们要么是反复迭代、要么要调多次工具。
 
 ## 边的连接策略
 
@@ -216,7 +216,7 @@ DEBATE_PATH_MAP = {
 
 ### 类一：分析师的 ReAct 工具循环
 
-`should_continue_market`（`conditional_logic.py:14-50`）代表四个分析师共有的模式：
+`should_continue_market`（`conditional_logic.py:14-20`）代表四个分析师共有的模式：
 
 ```python
 def should_continue_market(self, state: AgentState):
@@ -384,7 +384,7 @@ sequenceDiagram
     Note over S: trader_investment_plan 填入
 
     rect rgb(248, 240, 255)
-        Note over G,S: 阶段四：风险辩论
+        Note over G,S: 阶段三：风险辩论
         G->>S: Aggressive (latest_speaker=""→Aggressive)
         Note over S: count=1
         G->>S: should_continue_risk_analysis

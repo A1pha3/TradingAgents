@@ -29,15 +29,15 @@ Step 3: Output Language
 |------|--------|
 | 英语 | English |
 | 简体中文 | 中文 |
-| 西班牙语 | Español |
-| 法语 | Français |
-| 德语 | Deutsch |
 | 日语 | 日本語 |
 | 韩语 | 한국어 |
-| 俄语 | Русский |
+| 印地语 | Hindi |
+| 西班牙语 | Español |
 | 葡萄牙语 | Português |
-| 意大利语 | Italiano |
-| 荷兰语 | Nederlands |
+| 法语 | Français |
+| 德语 | Deutsch |
+| 阿拉伯语 | العربية |
+| 俄语 | Русский |
 
 另外有一个 `Custom` 选项，可以输入任意语言名称（比如"阿拉伯语"）。
 
@@ -87,7 +87,7 @@ TRADINGAGENTS_OUTPUT_LANGUAGE=中文
 
 ```bash
 # 查看最终决策
-cat ~/.tradingagents/logs/reports/NVDA_*/5_portfolio/decision.md | head -20
+cat reports/NVDA_*/5_portfolio/decision.md | head -20
 ```
 
 如果开头是中文摘要，说明设置生效。

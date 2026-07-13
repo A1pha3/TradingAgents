@@ -33,8 +33,9 @@ sequenceDiagram
     Note over Run1: 当天无法反思<br/>价格还没产生
 
     Note over Run2: 阶段 B：延迟反思
-    Run2->>Log: get_pending_entries (NVDA)
-    Log-->>Run2: 返回上面那条 pending
+    Run2->>Log: get_pending_entries()
+    Log-->>Run2: 返回所有 pending，按 NVDA 过滤
+    Run2->>YF: 拉 5/10 起 5 个交易日的 NVDA + SPY
     Run2->>YF: 拉 5/10 起 5 个交易日的 NVDA + SPY
     YF-->>Run2: Close 序列
     Run2->>Refl: reflect_on_final_decision<br/>(decision, raw, alpha)

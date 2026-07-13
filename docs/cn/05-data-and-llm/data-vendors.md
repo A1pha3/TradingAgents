@@ -358,7 +358,7 @@ primary_vendors = [v.strip() for v in vendor_config.split(',')]
 
 **缓存毒化防护**。如果一次失败的请求把空数据或错误数据写进缓存，后续所有读都会拿到脏数据。`load_ohlcv` 在写入缓存前先校验数据完整性，校验不过不写。
 
-陈旧阈值定义在模块常量 `MAX_OHLCV_STALE_DAYS = 10`（`stockstats_utils.py:88-122`），超过 10 天算陈旧。yfinance 限流的 429 由 `y_retry`（`stockstats_utils.py:23-39`）做指数退避重试，重试用尽后由路由层接管。
+陈旧阈值定义在模块常量 `MAX_OHLCV_STALE_DAYS = 10`（`stockstats_utils.py:88-122`），超过 10 天算陈旧。yfinance 限流的 429 由 `yf_retry`（`stockstats_utils.py:23-39`）做指数退避重试，重试用尽后由路由层接管。
 
 ### Alpha Vantage：错误措辞分类
 
@@ -368,7 +368,7 @@ Alpha Vantage 的限流响应不是标准的 HTTP 429，而是一段包含 "rate
 
 ### FRED：宏观别名映射与描述性短语拒绝
 
-`fred.py` 的 `MACRO_SERIES`（`fred.py:37-72`）维护了 30 多个宏观指标的别名映射，把 `"GDP"`、`"CPI"`、`"unemployment"` 这类人类友好的名字解析成 FRED 的官方 series ID。`_resolve_series_id`（`fred.py:95-115`）会拒绝描述性短语——如果一个字符串不匹配任何已知别名也不是合法 series ID，它会 raise，而不是猜测。LLM 经常会把一段自由描述（比如 "the rate of inflation last quarter"）当作指标名传进来，拒绝描述性短语能防止拿到错误的 series。
+`fred.py` 的 `MACRO_SERIES`（`fred.py:37-72`）维护了 28 个宏观指标的别名映射，把 `"GDP"`、`"CPI"`、`"unemployment"` 这类人类友好的名字解析成 FRED 的官方 series ID。`_resolve_series_id`（`fred.py:95-115`）会拒绝描述性短语——如果一个字符串不匹配任何已知别名也不是合法 series ID，它会 raise，而不是猜测。LLM 经常会把一段自由描述（比如 "the rate of inflation last quarter"）当作指标名传进来，拒绝描述性短语能防止拿到错误的 series。
 
 ### 无 key 的公开端点
 
@@ -384,7 +384,7 @@ Polymarket（`polymarket.py`）、StockTwits（`stocktwits.py`）走公开 Gamma
 
 路由层返回哨兵字符串防住了「没数据时编造」，但还有一种更隐蔽的编造：LLM 拿到真实数据后，在长报告里把数字记错或改写。`market_data_validator.py` 的 `build_verified_market_snapshot`（`market_data_validator.py:62-123`）针对这个问题。
 
-它在分析开始时构建一份确定性的 ground-truth 快照——当前价、前收、涨跌幅、成交量等关键字段，从供应商原样拉取并固化。后续所有 agent 引用这些数字时，都对照快照校验。一旦 LLM 输出的数字和快照对不上，就会被标记。这对应 issue #830：LLM 在长上下文里编造价格不是偶发现象，需要一个确定性的参照系。
+它在分析开始时构建一份确定性的 ground-truth 快照——开高低收成交量（Open/High/Low/Close/Volume）等关键字段，从供应商原样拉取并固化。后续所有 agent 引用这些数字时，都对照快照校验。一旦 LLM 输出的数字和快照对不上，就会被标记。这对应 issue #830：LLM 在长上下文里编造价格不是偶发现象，需要一个确定性的参照系。
 
 这个机制和数据层的「哨兵防编造」是互补的：哨兵管「没数据」，快照管「有数据但记错」。两者一起把 LLM 的数字幻觉框定在可检测的范围内。
 

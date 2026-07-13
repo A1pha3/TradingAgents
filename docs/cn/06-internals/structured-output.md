@@ -1,39 +1,42 @@
 # 结构化输出 ⭐⭐⭐
 
-> **目标读者**：想把 TradingAgents 接到不同 LLM 提供商、想理解为什么三个决策 agent 的输出格式总是稳定、并计划定制输出字段的开发者
+> **目标读者**：想把 TradingAgents 接到不同 LLM 提供商、想理解为什么决策 agent 的输出格式总是稳定、并计划定制输出字段的开发者
 > **核心问题**：为什么 prose 仍是主产物？结构化输出叠加在哪一层？模型不支持结构化时会怎样？为什么 DeepSeek 不能用 tool_choice？
 
 ---
 
 ## 一句话定位
 
-TradingAgents 的主产物**仍然是自然语言 prose**，不是 JSON。结构化输出是叠在 prose 之上的"一致性保证层"，作用是让三个决策 agent（Research Manager、Trader、Portfolio Manager）的输出在不同模型、不同运行之间保持稳定的章节结构，方便下游解析、记忆日志、报告生成。
+TradingAgents 的主产物**仍然是自然语言 prose**，不是 JSON。结构化输出是叠在 prose 之上的"一致性保证层"，作用是让四个 agent（Sentiment Analyst、Research Manager、Trader、Portfolio Manager）的输出在不同模型、不同运行之间保持稳定的章节结构，方便下游解析、记忆日志、报告生成。
 
 这个定位是理解整套机制的前提。`schemas.py` 文件头的注释开宗明义：
 
 > The framework's primary artifact is still prose: each agent's natural-language reasoning is what users read in the saved markdown reports and what the downstream agents read as context. Structured output is layered onto the three decision-making agents...
 
-为什么不全量结构化？因为分析师的推理是给人读的，挤进 JSON 字段会损失表达力；而决策动作（评级、买卖方向、目标价）确实需要可机器解析。所以系统在"需要机器读"的地方加结构化，在"需要人读"的地方保留 prose。
+为什么不全量结构化？因为分析师的推理是给人读的，挤进 JSON 字段会损失表达力；而决策动作（评级、买卖方向、目标价）确实需要可机器解析。所以系统在"需要机器读"的地方加结构化，在"需要人读"的地方保留 prose。例外是 Sentiment Analyst——它也用结构化输出，因为情绪报告需要可比较的量化字段（分数、置信度）。
 
 ```mermaid
 flowchart TD
-    subgraph "三个决策 agent (结构化)"
+    subgraph "结构化 agent"
+        SA["Sentiment Analyst<br/>SentimentReport"]
         RM["Research Manager<br/>ResearchPlan"]
         TR["Trader<br/>TraderProposal"]
         PM["Portfolio Manager<br/>PortfolioDecision"]
     end
     subgraph "纯 prose agent (不结构化)"
-        AN["4 个 Analyst"]
+        AN["Market/News/Fundamentals Analyst"]
         BL["Bull/Bear Researcher"]
         RK["Risk 三方辩论"]
     end
+    SA -->|"render_sentiment_report"| MD0["**Overall Sentiment**: Bullish\n**Score**: 7.5/10"]
     RM -->|"render_research_plan"| MD1["**Recommendation**: Buy\n**Rationale**: ..."]
-    TR -->|"render_trader_proposal"| MD2["**Action**: Buy\nFINAL TRANSACTION PROPOSAL: **BUY**"]
+    TR -->|"render_trader_proposal"| MD2["**Action**: Buy\nFINAL TRANSACTION PROPOSAL: **Buy**"]
     PM -->|"render_pm_decision"| MD3["**Rating**: Buy\n**Investment Thesis**: ..."]
     AN --> MD["直接是 prose"]
     BL --> MD
     RK --> MD
-    MD1 --> MEM["记忆日志 / 报告 / 下游 agent"]
+    MD0 --> MEM["记忆日志 / 报告 / 下游 agent"]
+    MD1 --> MEM
     MD2 --> MEM
     MD3 --> MEM
     MD --> MEM
@@ -43,9 +46,9 @@ flowchart TD
 
 ---
 
-## 三个决策 schema
+## 四个结构化 schema
 
-`schemas.py` 定义了三个 Pydantic schema，分别对应三个决策点。它们的设计有共性也有差异。
+`schemas.py` 定义了四个 Pydantic schema。三个用于决策点（Research Manager、Trader、Portfolio Manager），一个用于情绪分析（Sentiment Analyst）。它们的设计有共性也有差异。
 
 ### 共享的评级枚举
 
@@ -63,9 +66,18 @@ class TraderAction(str, Enum):
     BUY = "Buy"
     HOLD = "Hold"
     SELL = "Sell"
+
+class SentimentBand(str, Enum):
+    """6-band sentiment classification used by the Sentiment Analyst."""
+    BULLISH = "Bullish"
+    MILDLY_BULLISH = "Mildly Bullish"
+    NEUTRAL = "Neutral"
+    MIXED = "Mixed"
+    MILDLY_BEARISH = "Mildly Bearish"
+    BEARISH = "Bearish"
 ```
 
-`schemas.py:44-65`。RM 和 PM 用 5 档（包含 Overweight / Underweight 这种仓位倾斜），Trader 只用 3 档（Buy / Hold / Sell）。注释解释了为什么 Trader 不需要 5 档：
+`schemas.py:44-65`（PortfolioRating/TraderAction）、`schemas.py:258-271`（SentimentBand）。RM 和 PM 用 5 档（包含 Overweight / Underweight 这种仓位倾斜），Trader 只用 3 档（Buy / Hold / Sell），Sentiment Analyst 用 6 档情绪带（区分 Bullish/Bearish 的程度以及 Neutral 与 Mixed 的差异——Neutral 是信号弱，Mixed 是多空信号冲突）。注释解释了为什么 Trader 不需要 5 档：
 
 > The Trader's job is to translate the Research Manager's investment plan into a concrete transaction proposal: should the desk execute a Buy, a Sell, or sit on Hold this round. Position sizing and the nuanced Overweight / Underweight calls happen later at the Portfolio Manager.
 
@@ -119,6 +131,21 @@ class TraderAction(str, Enum):
 
 这是把记忆系统和结构化输出绑起来——如果 prompt 里有过去的反思（见 [memory-system.md](./memory-system.md) 的 `get_past_context`），PM 应该在 thesis 里体现"吸取了哪些教训"。结构化字段不只是格式约束，也是行为约束。
 
+### SentimentReport：情绪分析师的产出
+
+`schemas.py:273-326`。四个字段：
+
+| 字段 | 类型 | 作用 |
+|------|------|------|
+| `overall_band` | `SentimentBand` | 6 档情绪分类 |
+| `overall_score` | `float`（0-10） | 量化情绪强度，10 最看多 |
+| `confidence` | `Literal["low","medium","high"]` | 分析师对自身判断的置信度 |
+| `narrative` | `str` | 2-4 段自然语言分析，解释分数和分类 |
+
+Sentiment Analyst 是四个分析师里唯一用结构化输出的。原因在于情绪分析的本质：它的产物需要被下游（多空辩手、PM）快速比较和引用。`overall_band` 和 `overall_score` 提供可量化的锚点，`narrative` 保留可读的推理。而 Market/News/Fundamentals Analyst 产出的是叙述性报告，结构化反而会损失信息。
+
+`sentiment_analyst.py:58` 用 `bind_structured(llm, SentimentReport, ...)` 绑定 schema，走和其他三个结构化 agent 相同的 `invoke_structured_or_freetext` 降级路径。渲染函数是 `render_sentiment_report`（`schemas.py:328-341`），输出带 `**Overall Sentiment:**` 头部的 markdown。
+
 ---
 
 ## _NULLISH_FLOAT：处理模型的占位符
@@ -138,7 +165,7 @@ def _coerce_optional_float(value):
     return value
 ```
 
-然后挂成 Pydantic 的 `field_validator`：
+然后挂成 Pydantic 的 `field_validator`，覆盖 TraderProposal 的两个可选价（`entry_price`、`stop_loss`）和 PortfolioDecision 的 `price_target`：
 
 ```python
 @field_validator("entry_price", "stop_loss", mode="before")

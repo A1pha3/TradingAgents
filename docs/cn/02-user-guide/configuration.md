@@ -266,7 +266,7 @@ config["tool_vendors"] = {
 
 ### LLM API Key（来自 `.env.example`）
 
-`.env.example` 列了 14 个 provider 的 API Key，按你实际用的 provider 填一个或几个即可：
+`.env.example` 列了 16 个 provider 的 API Key，按你实际用的 provider 填一个或几个即可：
 
 ```env
 OPENAI_API_KEY=

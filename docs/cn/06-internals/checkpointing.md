@@ -79,12 +79,12 @@ def _run_signature(self, asset_type: str) -> str:
 
 | 维度 | 影响 | 例子 |
 |------|------|------|
-| `selected_analysts` | 哪些分析师节点会跑 | `market,sentiment,news,fundamentals` |
+| `selected_analysts` | 哪些分析师节点会跑 | `market,social,news,fundamentals`（注意内部 key 是 `social` 不是 `sentiment`） |
 | `max_debate_rounds` | 多轮辩论节点循环几次 | `1` / `2` / `3` |
 | `max_risk_discuss_rounds` | 风控讨论循环几次 | `1` / `2` |
 | `asset_type` | 走 stock pipeline 还是 crypto pipeline | `stock` / `crypto` |
 
-最终 `thread_id = sha256("NVDA:2024-05-10:analysts=market,sentiment|debate=1|risk=1|asset=stock")[:16]`。
+最终 `thread_id = sha256("NVDA:2024-05-10:analysts=market,social,news,fundamentals|debate=1|risk=1|asset=stock")[:16]`。
 
 **为什么要塞 signature 进去？** 这是 #1089 的修复。考虑这个场景：
 

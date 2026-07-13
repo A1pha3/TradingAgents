@@ -104,7 +104,7 @@ Step 3: Output Language
 
 **跳过条件**：设置了 `TRADINGAGENTS_OUTPUT_LANGUAGE`。
 
-支持 11 种语言 + Custom（`cli/utils.py:653-688`）：English、中文、Español、Français、Deutsch、日本語、한국어、Русский、Português、Italiano、Nederlands。
+支持 11 种语言 + Custom（`cli/utils.py:653-688`）：English、中文、日本語、한국어、हिन्दी、Español、Português、Français、Deutsch、العربية、Русский。
 
 **重要细节**：输出语言只影响**分析师报告和最终决策的呈现语言**，不影响 Agent 之间的内部辩论。辩论保持英文，因为这是 LLM 推理质量最稳定的语言。这个设计决策的动机详见 [设计哲学](../03-architecture/design-philosophy.md)。
 
@@ -215,7 +215,7 @@ Step 8: Reasoning Effort (for thinking models)
 |--------|--------|--------|
 | OpenAI（gpt-5/o 系列） | `reasoning_effort` | low / medium / high |
 | Anthropic（Claude 4.5+） | `effort` | low / medium / high |
-| Google（Gemini 3.x） | `thinking_level` | minimal / low / medium / high |
+| Google（Gemini 3.x） | `thinking_level` | CLI 暴露 minimal / high 两档 |
 
 **注意**：并非所有模型都接受这些参数。框架的能力表（`capabilities.py`）会判断模型是否支持，不支持的会自动跳过，不会报错。
 

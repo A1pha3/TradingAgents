@@ -288,7 +288,7 @@ new_risk_debate_state = {
 }
 ```
 
-9 个字段（不算 `judge_decision`，那是裁判才设的），其中 5 个是原样拷贝。这就是为什么风险辩论的状态更新比投资辩论繁琐——三方而不是两方，所以不变的字段更多。
+9 个字段（不算 `judge_decision`，那是裁判才设的），其中 4 个是原样拷贝。这就是为什么风险辩论的状态更新比投资辩论繁琐——三方而不是两方，所以不变的字段更多。
 
 `history` 同样是 append 自己的 argument。每个 debator 节点都会做 `history + "\n" + argument`，所以 `history` 是按时间顺序排列的所有发言合并。
 

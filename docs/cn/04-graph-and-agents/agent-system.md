@@ -83,7 +83,7 @@ flowchart TD
 
 ### Market Analyst：典型的 ReAct 工具循环
 
-`market_analyst.py` 是 4 个分析师里 prompt 最重的一个，因为它的 system message 内嵌了一份指标百科。从 `market_analyst.py:25-53` 可以看到，system message 列出了 4 大类共 10+ 个技术指标（移动平均、MACD、动量、波动率、成交量），每个指标都有用途说明。
+`market_analyst.py` 是 4 个分析师里 prompt 最重的一个，因为它的 system message 内嵌了一份指标百科。从 `market_analyst.py:25-53` 可以看到，system message 列出了 5 大类共 12 个技术指标（移动平均、MACD、动量、波动率、成交量），每个指标都有用途说明。
 
 这个角色的几个关键约束：
 
@@ -307,7 +307,7 @@ lessons_line = (
 
 `past_context` 是 `TradingMemoryLog` 在运行开始时格式化好的经验字符串（同 ticker 历史决策 + 跨 ticker 的反思）。如果非空，就以 "Lessons from prior decisions and outcomes:" 的格式注入 prompt。这是框架唯一的记忆注入点——所有过去的经验都通过这一行进入 LLM 上下文。详见 [记忆与反思](../06-internals/memory-system.md)。
 
-输出绑定 `PortfolioDecision` schema（`schemas.py:188-228`），含 5 级 `rating`、`executive_summary`、`investment_thesis`、可选的 `price_target` 和 `time_horizon`。prompt 接收三类输入（`portfolio_manager.py:55-60`）：
+输出绑定 `PortfolioDecision` schema（`schemas.py:188-228`），含 5 级 `rating`、`executive_summary`、`investment_thesis`、可选的 `price_target` 和 `time_horizon`。prompt 接收四类输入（`portfolio_manager.py:55-60`）：
 
 ```
 - Research Manager's investment plan: **{research_plan}**
@@ -366,7 +366,7 @@ return {
 }
 ```
 
-注意它写了 `messages`——这是流水线中第三个（前两个是 Market/Sentiment/News/Fundamentals Analyst）也是最后一个往 `messages` 写内容的节点。Trader 之后的风险辩手和管理层都只更新各自的子状态字段，不再写 messages。这也是为什么 Portfolio Manager 不需要 `MessagesPlaceholder`——到它这一步，messages 已经不重要了。
+注意它写了 `messages`——这是流水线中最后一个往 `messages` 写内容的节点（4 个分析师也会写 messages，但它们之后都被 Msg Clear 清空）。Trader 之后的风险辩手和管理层都只更新各自的子状态字段，不再写 messages。这也是为什么 Portfolio Manager 不需要 `MessagesPlaceholder`——到它这一步，messages 已经不重要了。
 
 `functools.partial(trader_node, name="Trader")`（`trader.py:65`）是个小技巧：让节点函数签名兼容 LangGraph 的 `(state)` 调用约定，但内部仍能拿到 `name` 参数。
 
@@ -395,7 +395,7 @@ new_risk_debate_state = {
 }
 ```
 
-对比 Bull/Bear 的 5 字段子状态，RiskDebateState 有 11 个字段。每方发言都要把自己 history 追加、把另外两方 history 和 current_*_response 原样拷贝、设 `latest_speaker` 驱动轮转、自增 `count` 驱动终止。这里的"原样拷贝"比 Bull/Bear 更繁琐，但底层原因一样：嵌套 TypedDict 整体覆盖，必须把所有字段带上。
+对比 Bull/Bear 的 5 字段子状态，RiskDebateState 有 10 个字段。每方发言都要把自己 history 追加、把另外两方 history 和 current_*_response 原样拷贝、设 `latest_speaker` 驱动轮转、自增 `count` 驱动终止。这里的"原样拷贝"比 Bull/Bear 更繁琐，但底层原因一样：嵌套 TypedDict 整体覆盖，必须把所有字段带上。
 
 `latest_speaker` 用 "Aggressive" / "Conservative" / "Neutral" 这种短前缀（不是节点名 "Aggressive Analyst"），匹配 `should_continue_risk_analysis` 里的 `startswith` 判断。轮转规则（详见 [辩论机制](debate-mechanism.md)）：Aggressive → Conservative → Neutral → 循环。
 
