@@ -1,12 +1,11 @@
 # TradingAgents/graph/propagation.py
 
-from typing import Dict, Any, List, Optional
+from typing import Any
+
 from tradingagents.agents.utils.agent_states import (
-    AgentState,
     InvestDebateState,
     RiskDebateState,
 )
-from tradingagents.market import resolve_instrument_profile
 
 
 class Propagator:
@@ -22,14 +21,22 @@ class Propagator:
         trade_date: str,
         asset_type: str = "stock",
         past_context: str = "",
-    ) -> Dict[str, Any]:
-        """Create the initial state for the agent graph."""
+        instrument_context: str = "",
+    ) -> dict[str, Any]:
+        """Create the initial state for the agent graph.
+
+        ``instrument_context`` is the deterministic ticker-identity string
+        resolved once at run start (see
+        ``TradingAgentsGraph.resolve_instrument_context``). When empty, agents
+        fall back to ticker-only context via
+        ``get_instrument_context_from_state``.
+        """
         return {
             "messages": [("human", company_name)],
             "company_of_interest": company_name,
             "asset_type": asset_type,
+            "instrument_context": instrument_context,
             "trade_date": str(trade_date),
-            "instrument_profile": resolve_instrument_profile(company_name, asset_type),
             "past_context": past_context,
             "investment_debate_state": InvestDebateState(
                 {
@@ -61,7 +68,7 @@ class Propagator:
             "news_report": "",
         }
 
-    def get_graph_args(self, callbacks: Optional[List] = None) -> Dict[str, Any]:
+    def get_graph_args(self, callbacks: list | None = None) -> dict[str, Any]:
         """Get arguments for the graph invocation.
 
         Args:

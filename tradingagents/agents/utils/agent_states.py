@@ -1,7 +1,7 @@
 from typing import Annotated
-from typing_extensions import TypedDict
+
 from langgraph.graph import MessagesState
-from tradingagents.market import InstrumentProfile
+from typing_extensions import TypedDict
 
 
 # Researcher team state
@@ -47,8 +47,8 @@ class RiskDebateState(TypedDict):
 class AgentState(MessagesState):
     company_of_interest: Annotated[str, "Company that we are interested in trading"]
     asset_type: Annotated[str, "Asset type under analysis such as stock or crypto"]
+    instrument_context: Annotated[str, "Deterministic ticker identity resolved at run start"]
     trade_date: Annotated[str, "What date we are trading at"]
-    instrument_profile: Annotated[InstrumentProfile, "Market-specific instrument profile (exchange, board, currency, etc.)"]
 
     sender: Annotated[str, "Agent that sent this message"]
 
