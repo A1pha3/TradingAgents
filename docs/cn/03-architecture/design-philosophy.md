@@ -247,7 +247,7 @@ class ModelCapabilities:
 - 想看**这些决策在代码里如何落地**，读上一篇 [系统架构总览](overview.md)。
 - 想深入**双辩论循环的状态机和轮次数学**，读 [辩论机制](../04-graph-and-agents/debate-mechanism.md)。
 - 想理解 **vendor 路由和 fallback 链的完整细节**（对应决策 6/7/8），读 [数据供应商路由](../05-data-and-llm/data-vendors.md)。
-- 想看 **19 个 Provider 和能力表的具体字段**（对应决策 10），读 [LLM 客户端](../05-data-and-llm/llm-clients.md)。
+- 想看 **20 个 Provider 和能力表的具体字段**（对应决策 10），读 [LLM 客户端](../05-data-and-llm/llm-clients.md)。
 - 想了解 **结构化输出如何降级**（决策 4/5 的下游），读 [结构化输出](../06-internals/structured-output.md)。
 
 如果只想记住一件事：**TradingAgents 的每个设计决策都是在用一个具体的代价换一个具体的好处——用更多 LLM 调用换分工的专业性，用确定性图换可复现性，用双辩论换方向与执行的双重审视，用两个模型换成本与质量的平衡，用哨兵和 loud fail换数据的可信度。理解这些交易，才能判断这套工具适不适合你的场景。**

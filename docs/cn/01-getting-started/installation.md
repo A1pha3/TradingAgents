@@ -119,7 +119,7 @@ export OPENAI_API_KEY=sk-你的真实key
 
 两种方式等价。`.env` 文件的好处是配置持久化，不用每次开新终端都重新 export。
 
-> 📖 完整的 API Key 配置（19 个供应商）参见 [LLM 客户端](../05-data-and-llm/llm-clients.md)。完整的 `TRADINGAGENTS_*` 配置项参见 [配置参考](../02-user-guide/configuration.md)。
+> 📖 完整的 API Key 配置（20 个供应商）参见 [LLM 客户端](../05-data-and-llm/llm-clients.md)。完整的 `TRADINGAGENTS_*` 配置项参见 [配置参考](../02-user-guide/configuration.md)。
 
 ---
 

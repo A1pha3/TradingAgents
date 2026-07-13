@@ -383,7 +383,7 @@ for entry in log.load_entries():
 
 ## 下一步
 
-- 想看这些反思怎么被 PM 用上：[../04-graph-and-agents/portfolio-manager.md](../04-graph-and-agents/portfolio-manager.md)
+- 想看这些反思怎么被 PM 用上：[../04-graph-and-agents/agent-system.md](../04-graph-and-agents/agent-system.md)
 - 想理解断点续跑如何避免和记忆系统冲突：[./checkpointing.md](./checkpointing.md)
 - 想看决策正文为什么格式这么规整（影响 `parse_rating`）：[./structured-output.md](./structured-output.md)
 

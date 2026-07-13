@@ -80,7 +80,7 @@ if not os.environ.get("TRADINGAGENTS_MAX_RISK_ROUNDS"):
 
 | 键名 | 默认值 | 可覆盖 | 说明 |
 |------|--------|--------|------|
-| `llm_provider` | `"openai"` | `TRADINGAGENTS_LLM_PROVIDER` | 19 个供应商之一，详见 [LLM 客户端](../05-data-and-llm/llm-clients.md) |
+| `llm_provider` | `"openai"` | `TRADINGAGENTS_LLM_PROVIDER` | 20 个供应商之一，详见 [LLM 客户端](../05-data-and-llm/llm-clients.md) |
 | `deep_think_llm` | `"gpt-5.5"` | `TRADINGAGENTS_DEEP_THINK_LLM` | 给两个裁判（Research Manager、Portfolio Manager）用的强模型 |
 | `quick_think_llm` | `"gpt-5.4-mini"` | `TRADINGAGENTS_QUICK_THINK_LLM` | 给分析师和辩手用的快模型，省钱 |
 | `backend_url` | `None` | `TRADINGAGENTS_LLM_BACKEND_URL` | `None` 时每个 provider 用各自默认端点；写死一个 provider 的 URL 会"泄漏"到别的 provider（`default_config.py:84-89` 注释） |

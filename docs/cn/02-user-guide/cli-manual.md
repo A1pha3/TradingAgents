@@ -165,7 +165,7 @@ Step 6: LLM Provider
 
 **跳过条件**：设置了 `TRADINGAGENTS_LLM_PROVIDER`。
 
-支持 19 个供应商（`cli/utils.py:338-366`）：
+支持 20 个供应商（`cli/utils.py:338-366`）：
 
 | 类别 | 供应商 |
 |------|--------|

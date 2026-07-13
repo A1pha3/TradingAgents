@@ -243,7 +243,7 @@ print(f"报告写在 {report_path}")
 
 ## 下一步
 
-- 想看 `final_state` 各字段的语义来源：[../04-graph-and-agents/analysts.md](../04-graph-and-agents/analysts.md)
+- 想看 `final_state` 各字段的语义来源：[../04-graph-and-agents/agent-system.md](../04-graph-and-agents/agent-system.md)
 - 想理解 `final_trade_decision` 为什么格式这么规整：[./structured-output.md](./structured-output.md)
 - 跑挂了想从断点恢复，看报告写到一半怎么办：[./checkpointing.md](./checkpointing.md)
 

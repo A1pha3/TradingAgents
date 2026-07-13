@@ -115,7 +115,7 @@ flowchart TD
 |------|------|------|------|
 | [数据供应商路由](05-data-and-llm/data-vendors.md) | Vendor chain、fallback、优雅降级、错误体系 | ⭐⭐⭐ | 35 分钟 |
 | [符号归一化](05-data-and-llm/symbol-normalization.md) | crypto/forex/commodity/index 符号映射 | ⭐⭐ | 15 分钟 |
-| [LLM 客户端](05-data-and-llm/llm-clients.md) | 19 个 Provider、能力表、结构化输出适配 | ⭐⭐⭐ | 35 分钟 |
+| [LLM 客户端](05-data-and-llm/llm-clients.md) | 20 个 Provider、能力表、结构化输出适配 | ⭐⭐⭐ | 35 分钟 |
 
 ### 📔 06 内部机制篇 Internals
 

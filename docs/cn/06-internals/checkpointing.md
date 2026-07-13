@@ -296,7 +296,7 @@ checkpointing 和 memory system 是两套完全独立的持久化机制，容易
 
 ## 下一步
 
-- 想看 propagate 完整生命周期（checkpoint 在哪一步介入）：[../04-graph-and-agents/graph-overview.md](../04-graph-and-agents/graph-overview.md)
+- 想看 propagate 完整生命周期（checkpoint 在哪一步介入）：[../04-graph-and-agents/graph-orchestration.md](../04-graph-and-agents/graph-orchestration.md)
 - 想理解 propagate 开头先做什么（延迟反思）：[./memory-system.md](./memory-system.md)
 - 想看 final_state 长什么样、被 checkpoint 存的到底是什么：[./reporting.md](./reporting.md)
 

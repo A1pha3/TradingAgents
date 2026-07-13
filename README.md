@@ -62,7 +62,7 @@
 For a complete Chinese documentation system covering quick start, principles, architecture, configuration, extension development, source code index, and contributor guidance, start here:
 
 - [Chinese Documentation Center](docs/cn/README.md)
-- [Full Chinese Complete Guide](docs/cn/tradingagents-complete-guide.md)
+- [Architecture Overview](docs/cn/03-architecture/overview.md)
 
 ## TradingAgents Framework
 

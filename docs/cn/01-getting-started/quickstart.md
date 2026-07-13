@@ -111,7 +111,7 @@ Step 6: LLM Provider
 
 选你配了 Key 的供应商。第一次建议 OpenAI（如果你配的是 `OPENAI_API_KEY`）。
 
-完整列表有 19 个供应商（OpenAI / Anthropic / Google / xAI / DeepSeek / Qwen 双区 / GLM 双区 / MiniMax 双区 / OpenRouter / Mistral / Kimi / Groq / NVIDIA / Azure / Bedrock / Ollama / OpenAI-compatible）。
+完整列表有 20 个供应商（OpenAI / Anthropic / Google / xAI / DeepSeek / Qwen 双区 / GLM 双区 / MiniMax 双区 / OpenRouter / Mistral / Kimi / Groq / NVIDIA / Azure / Bedrock / Ollama / OpenAI-compatible）。
 
 ### 步骤 7：选择模型
 
