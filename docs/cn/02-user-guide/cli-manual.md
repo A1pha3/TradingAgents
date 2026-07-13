@@ -231,7 +231,7 @@ Step 8: Reasoning Effort (for thinking models)
 Save the complete report to disk? [Y/n]:
 ```
 
-默认 `Y`。报告写到 `~/.tradingagents/logs/reports/{TICKER}_{时间戳}/`，结构详见 [报告系统](../06-internals/reporting.md)。
+默认 `Y`。报告写到当前工作目录下的 `./reports/{TICKER}_{时间戳}/`（可在提示时改路径），结构详见 [报告系统](../06-internals/reporting.md)。
 
 ### 查看完整报告
 

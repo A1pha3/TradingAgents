@@ -348,6 +348,8 @@ primary_vendors = [v.strip() for v in vendor_config.split(',')]
 
 第二，`_assert_ohlcv_not_stale` 防陈旧数据。yfinance 偶尔会返回几周前的最后一行数据，这种「看似有数据」的失败比「明确没数据」更危险——LLM 会拿一个两周前的价格当成最新价。防护的逻辑是把返回的最后一行日期和今天比，超过阈值就 raise `NoMarketDataError`，`detail` 标记为 stale。这样它和「真正没数据」走同一条路径，路由层不需要特殊处理。
 
+阈值 `MAX_OHLCV_STALE_DAYS = 10`（`stockstats_utils.py:20`）是一个需要解释的数字。它要在两个约束之间取交集：**宽到能跨长周末和连串节假日**（美股 Labor Day、感恩节、独立日周边常有 3-4 天无新 bar；叠加 yfinance 限流重试可达 5-6 天），同时**紧到能抓住 yfinance 偶发返回的陈旧帧**（issue #1021 修的就是 vendor 返回一年前的帧的情况）。设成 3 天会在节假日后的合法回测里误杀；设成 30 天则抓不住真正陈旧的数据。10 天是这两条约束的折中。
+
 `get_YFin_data_online` 里还有一个包容性修正：`end_date + 1`（`y_finance.py`，对应 issue #986/#987）。yfinance 的日期区间是左闭右开，少加一天会漏掉今天的数据。
 
 ### stockstats：缓存毒化与前视偏差防护

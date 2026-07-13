@@ -35,8 +35,8 @@ sequenceDiagram
     Note over Run2: 阶段 B：延迟反思
     Run2->>Log: get_pending_entries()
     Log-->>Run2: 返回所有 pending，按 NVDA 过滤
-    Run2->>YF: 拉 5/10 起 5 个交易日的 NVDA + SPY
-    Run2->>YF: 拉 5/10 起 5 个交易日的 NVDA + SPY
+    Run2->>YF: 拉 NVDA（标的）5 个交易日收盘价
+    Run2->>YF: 拉 SPY（基准）同期收盘价
     YF-->>Run2: Close 序列
     Run2->>Refl: reflect_on_final_decision<br/>(decision, raw, alpha)
     Refl-->>Run2: 2-4 句反思

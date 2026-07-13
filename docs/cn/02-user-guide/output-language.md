@@ -31,7 +31,7 @@ Step 3: Output Language
 | 简体中文 | 中文 |
 | 日语 | 日本語 |
 | 韩语 | 한국어 |
-| 印地语 | Hindi |
+| 印地语 | हिन्दी |
 | 西班牙语 | Español |
 | 葡萄牙语 | Português |
 | 法语 | Français |

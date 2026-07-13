@@ -225,7 +225,7 @@ def checkpoint_step(data_dir, ticker, date, signature="") -> int | None:
 | 配置键 | 默认值 | 覆盖方式 |
 |--------|--------|----------|
 | `checkpoint_enabled` | `False` | `TRADINGAGENTS_CHECKPOINT_ENABLED` 环境变量、CLI `--checkpoint` / `--no-checkpoint`、配置字典 |
-| `data_cache_dir` | `~/.tradingagents/data_cache` | checkpoint db 文件存在这个目录下的 `checkpoints/` 子目录 |
+| `data_cache_dir` | `~/.tradingagents/cache` | checkpoint db 文件存在这个目录下的 `checkpoints/` 子目录 |
 
 启用后续跑发生在 `propagate` 层（`trading_graph.py:362-402`），不影响 `propagate` 之外的任何调用路径。`save_reports`、`memory_log` 这些独立功能不依赖 checkpoint。
 
@@ -238,7 +238,7 @@ def checkpoint_step(data_dir, ticker, date, signature="") -> int | None:
 直接用 sqlite3 客户端打开：
 
 ```bash
-sqlite3 ~/.tradingagents/data_cache/checkpoints/NVDA.db
+sqlite3 ~/.tradingagents/cache/checkpoints/NVDA.db
 .tables
 # checkpoints  writes
 SELECT thread_id, step FROM checkpoints;

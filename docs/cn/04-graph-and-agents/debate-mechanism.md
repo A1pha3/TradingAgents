@@ -270,7 +270,7 @@ Aggressive(1) → Conservative(2) → Neutral(3) → Aggressive(4) → Conservat
 
 注意第 7 步：Neutral 发言完 count=3，>= 阈值 3，**即使 latest_speaker 路由判断会把它送到 Aggressive，但阈值判断在前**。`should_continue_risk_analysis` 的代码顺序是先判阈值、后判路由——这是个很重要的实现细节，确保最后一方发言完直接进裁判，不会多绕一圈。
 
-### 状态更新：11 字段的整体覆盖
+### 状态更新：9 字段的整体覆盖
 
 `aggressive_debator.py:43-55` 的状态更新：
 
@@ -305,7 +305,7 @@ new_risk_debate_state = {
 | 阈值系数 | 2 | 3 | 参与方数 |
 | 路由字段 | `current_response` | `latest_speaker` | 三方需要专门字段 |
 | 路由判断 | `startswith("Bull")` 二分 | 三段 `startswith` + 默认 | 二分 vs 三态 |
-| 状态字段数 | 5 | 11 | 三方 history/response 翻倍 |
+| 状态字段数 | 5 | 9 | 三方 history/response 翻倍 |
 
 ## 环境变量与默认值
 

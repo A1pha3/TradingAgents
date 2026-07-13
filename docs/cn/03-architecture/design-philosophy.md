@@ -199,6 +199,14 @@ def _in_news_window(pub_date, start_dt, end_dt) -> bool:
 
 第二个规则是 #992 的修复重点。早期 yfinance 返回的"flat 结构"文章没有发布时间，导致它们绕过日期过滤，把未来新闻泄露进历史窗口。现在的实现会给 flat 文章也解析出 `pub_date`（`yfinance_news.py:42-57`），让它们同样可过滤。这套逻辑有专门的回归测试（`tests/test_news_lookahead.py`），覆盖"未来文章被排除""无日期文章在回测里被排除""实盘窗口保留无日期文章"等场景。
 
+新闻侧的防护只覆盖了一半。**财报侧同样有前视偏差风险**，而且更容易被忽略。
+
+yfinance 的财报数据（资产负债表、现金流、利润表）以**会计期末日期（fiscal period end date）作为列头**。比如一家公司 Q2 在 6 月 30 日结束，即使财报要到 8 月才公布，yfinance 返回的列头也是 `2025-06-30`。如果在 7 月 1 日做回测，这一列看起来"在分析日期之前"——但此时 Q2 财报还没发布，实盘根本拿不到。
+
+`filter_financials_by_date`（`stockstats_utils.py:195-206`）负责过滤掉 `fiscalDateEnding` 在 `curr_date` 之后的列。注意这里的语义陷阱：它过滤的是**会计期末日期晚于分析日期的财报**，而非**发布日期晚于分析日期的财报**。yfinance 不暴露确切的财报发布日期，所以框架只能用会计期末日做近似——这个近似在大多数情况下是安全的（季报在期末后 4-6 周发布，期末日远早于发布日），但在期末日接近分析日期的边界场景下，可能多保留一期尚未发布的财报。Alpha Vantage 的财报走 `_filter_reports_by_date`（`alpha_vantage_fundamentals.py:6-27`），逻辑相同。
+
+这条防护线和新闻窗口过滤构成两道独立的前视偏差防线：新闻按发布日期窗口过滤，财报按会计期末日过滤。两道防线缺一不可。
+
 ## 10. 为什么用能力表而不是 model-name if 梯子
 
 **问题动机**：不同模型在 API 层面的怪癖不同——DeepSeek 的 thinking 模式模型拒绝 `tool_choice` 参数，MiniMax 的 M2.x 需要 `reasoning_split=True`，等等。怎么管理这些差异？

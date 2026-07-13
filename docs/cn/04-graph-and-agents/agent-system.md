@@ -124,6 +124,16 @@ reddit_block = fetch_reddit_posts(ticker)
 
 三个数据源在节点函数体里同步预取，作为结构化 block 注入 system message（`sentiment_analyst.py:121-183`）。模型看到的是 `<start_of_news>...<end_of_news>` 这种带标签的真实数据，而不是被诱导去"想象"。
 
+三个源的失败行为各不相同，但有一个共同点：**都不抛异常，都返回字符串**（docstring 原话 "no exceptions surface from here"）。具体差异：
+
+| 数据源 | 失败时的行为 | 代码位置 |
+|--------|------------|---------|
+| Yahoo 新闻 | 走 `route_to_vendor`，返回 `NO_DATA_AVAILABLE: ...` 哨兵 | `get_news.func(...)`（注意用的是 `.func` 裸函数，绕过 `@tool` 包装以拿到哨兵而非被吞掉） |
+| StockTwits | 返回 `<stocktwits unavailable: {异常类型}>` 占位字符串 | `stocktwits.py:54-58`，覆盖 `OSError`/`HTTPException`/`JSONDecodeError` |
+| Reddit | 429 时按 `Retry-After` 退避重试一次，仍失败返回空 | `reddit.py`，走 RSS feed（JSON 端点被 WAF 403） |
+
+这样设计保证 LLM 永远能看到"有数据"或"明确不可用"的信号，不会因为某个源暂时挂了导致整个分析师节点崩溃。
+
 输出用结构化模式（`sentiment_analyst.py:58`）：
 
 ```python
@@ -305,7 +315,7 @@ lessons_line = (
 )
 ```
 
-`past_context` 是 `TradingMemoryLog` 在运行开始时格式化好的经验字符串（同 ticker 历史决策 + 跨 ticker 的反思）。如果非空，就以 "Lessons from prior decisions and outcomes:" 的格式注入 prompt。这是框架唯一的记忆注入点——所有过去的经验都通过这一行进入 LLM 上下文。详见 [记忆与反思](../06-internals/memory-system.md)。
+`past_context` 是 `TradingMemoryLog` 在运行开始时格式化好的经验字符串。这里有个关键区分：**同 ticker 的历史注入完整决策 + 反思（最近 5 条），跨 ticker 的历史只注入反思而不注入原始决策（最近 3 条）**。这样设计的意图是——同标的的完整决策有直接参考价值（同一只股票上次为什么看错），跨标的的原始决策没有可比性，但反思提取的教训（如"忽略了宏观环境"）是可迁移的。如果非空，就以 "Lessons from prior decisions and outcomes:" 的格式注入 prompt。这是框架唯一的记忆注入点——所有过去的经验都通过这一行进入 LLM 上下文。详见 [记忆与反思](../06-internals/memory-system.md)。
 
 输出绑定 `PortfolioDecision` schema（`schemas.py:188-228`），含 5 级 `rating`、`executive_summary`、`investment_thesis`、可选的 `price_target` 和 `time_horizon`。prompt 接收四类输入（`portfolio_manager.py:55-60`）：
 
@@ -395,7 +405,7 @@ new_risk_debate_state = {
 }
 ```
 
-对比 Bull/Bear 的 5 字段子状态，RiskDebateState 有 10 个字段。每方发言都要把自己 history 追加、把另外两方 history 和 current_*_response 原样拷贝、设 `latest_speaker` 驱动轮转、自增 `count` 驱动终止。这里的"原样拷贝"比 Bull/Bear 更繁琐，但底层原因一样：嵌套 TypedDict 整体覆盖，必须把所有字段带上。
+对比 Bull/Bear 的 6 字段子状态，RiskDebateState 有 10 个字段。每方发言都要把自己 history 追加、把另外两方 history 和 current_*_response 原样拷贝、设 `latest_speaker` 驱动轮转、自增 `count` 驱动终止。这里的"原样拷贝"比 Bull/Bear 更繁琐，但底层原因一样：嵌套 TypedDict 整体覆盖，必须把所有字段带上。
 
 `latest_speaker` 用 "Aggressive" / "Conservative" / "Neutral" 这种短前缀（不是节点名 "Aggressive Analyst"），匹配 `should_continue_risk_analysis` 里的 `startswith` 判断。轮转规则（详见 [辩论机制](debate-mechanism.md)）：Aggressive → Conservative → Neutral → 循环。
 
@@ -483,7 +493,7 @@ a tool result explicitly disproves this resolved identity.
 | 纯 prompt 辩手 | Bull/Bear/Aggressive/Conservative/Neutral | f-string + `llm.invoke(prompt)` |
 | 结构化裁判 | Research Manager/Portfolio Manager/Trader | `bind_structured` + `invoke_structured_or_freetext` |
 
-这四套模式覆盖了所有 13 个角色。理解了它们，再去看任何一个 agent 的源码，都能迅速定位它属于哪类、关键代码在哪几行。
+这四套模式覆盖了所有 12 个 LLM 角色（第 13 个 Msg Clear 是无 prompt 的横切节点）。理解了它们，再去看任何一个 agent 的源码，都能迅速定位它属于哪类、关键代码在哪几行。
 
 ## 下一步
 

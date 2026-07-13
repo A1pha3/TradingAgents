@@ -162,7 +162,7 @@ flowchart TD
 
 - **"13"怎么数的**：12 个 LLM 角色 + Msg Clear 节点。Msg Clear 在四个分析师之间各出现一次（节点名分别为 `Msg Clear Market` / `Msg Clear Sentiment` / `Msg Clear News` / `Msg Clear Fundamentals`），但它们由同一个工厂 `create_msg_delete` 创建（`setup.py:100`），所以算作一类节点。
 - **Sentiment Analyst 的特殊性**：它是唯一一个"预取数据"而非"工具循环"的分析师。数据在节点进入时就被同步抓取（News + StockTwits + Reddit），直接拼进 Prompt（`sentiment_analyst.py:66-80`）。这样设计是因为早期版本让 LLM 去调工具拉社交媒体数据，结果模型在 Prompt 压力下编造了不存在的 Reddit/StockTwits 内容（见 `sentiment_analyst.py` 顶部注释对 #557/#796 的说明）。
-- **结构化输出的三个角色**：Research Manager、Trader、Portfolio Manager 都用 `with_structured_output` 绑定 Pydantic Schema（`schemas.py`），输出会被渲染成固定 Markdown 形状再往下传。Sentiment Analyst 也用结构化输出，但它的产物是报告而非决策。这个机制的边界在[结构化输出](../06-internals/structured-output.md)单独讲。
+- **结构化输出的四个角色**：Sentiment Analyst、Research Manager、Trader、Portfolio Manager 都用 `with_structured_output` 绑定 Pydantic Schema（`schemas.py`），输出会被渲染成固定 Markdown 形状再往下传。前者的产物是情绪报告，后三者是决策。这个机制的边界在[结构化输出](../06-internals/structured-output.md)单独讲。
 
 ---
 

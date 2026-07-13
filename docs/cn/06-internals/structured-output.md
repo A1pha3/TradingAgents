@@ -97,7 +97,7 @@ class SentimentBand(str, Enum):
 
 > Reserve Hold for situations where the evidence on both sides is genuinely balanced; otherwise commit to the side with the stronger arguments.
 
-这是把"什么时候用 Hold"的判断标准塞进 schema，prompt body 就不用重复。这种"Field description 当输出指令"的写法贯穿三个 schema，让 prompt 本身可以专注上下文。
+这是把"什么时候用 Hold"的判断标准塞进 schema，prompt body 就不用重复。这种"Field description 当输出指令"的写法贯穿四个 schema，让 prompt 本身可以专注上下文。
 
 ### TraderProposal：Trader 的产出
 
@@ -115,7 +115,7 @@ class SentimentBand(str, Enum):
 
 ### PortfolioDecision：PM 的产出
 
-`schemas.py:188-228`。五个字段，是三个 schema 里最完整的：
+`schemas.py:188-228`。五个字段，是四个 schema 里最完整的：
 
 | 字段 | 类型 | 作用 |
 |------|------|------|
@@ -144,7 +144,7 @@ class SentimentBand(str, Enum):
 
 Sentiment Analyst 是四个分析师里唯一用结构化输出的。原因在于情绪分析的本质：它的产物需要被下游（多空辩手、PM）快速比较和引用。`overall_band` 和 `overall_score` 提供可量化的锚点，`narrative` 保留可读的推理。而 Market/News/Fundamentals Analyst 产出的是叙述性报告，结构化反而会损失信息。
 
-`sentiment_analyst.py:58` 用 `bind_structured(llm, SentimentReport, ...)` 绑定 schema，走和其他三个结构化 agent 相同的 `invoke_structured_or_freetext` 降级路径。渲染函数是 `render_sentiment_report`（`schemas.py:328-341`），输出带 `**Overall Sentiment:**` 头部的 markdown。
+`sentiment_analyst.py:58` 用 `bind_structured(llm, SentimentReport, ...)` 绑定 schema，走和其他三个结构化 agent 相同的 `invoke_structured_or_freetext` 降级路径。渲染函数是 `render_sentiment_report`（`schemas.py:328-344`），输出带 `**Overall Sentiment:**` 头部的 markdown。
 
 ---
 
@@ -182,7 +182,7 @@ def _nullish_float_to_none(cls, v):
 
 ## render 函数：结构化到 markdown 的回写
 
-三个 schema 各有一个 render 函数，把 Pydantic 实例渲染成下游能消费的 markdown。这一步是结构化输出"对下游透明"的关键。
+四个 schema 各有一个 render 函数，把 Pydantic 实例渲染成下游能消费的 markdown。这一步是结构化输出"对下游透明"的关键。
 
 ### render_pm_decision
 
@@ -336,7 +336,7 @@ class ModelCapabilities:
     requires_reasoning_split: bool = False
 ```
 
-五个字段描述一个模型在 API 层面接受什么、偏好什么。`StructuredMethod` 是个 Literal 枚举：
+六个字段描述一个模型在 API 层面接受什么、偏好什么。`StructuredMethod` 是个 Literal 枚举：
 
 ```python
 StructuredMethod = Literal[

@@ -303,7 +303,7 @@ if final_state.get("flow_report"):
 
 ### 容易漏的两处
 
-- **`conditional_logic` 不需要改**：每个 Analyst 的"是否收尾"条件路由是 `getattr(self.conditional_logic, f"should_continue_{spec.key}")`（`setup.py:126`），所以要在 `ConditionalLogic` 类里加一个 `should_continue_flow` 方法，逻辑照抄 `should_continue_market` 即可。
+- **`conditional_logic` 需要加一个方法**：每个 Analyst 的"是否收尾"条件路由是 `getattr(self.conditional_logic, f"should_continue_{spec.key}")`（`setup.py:126`），所以要在 `ConditionalLogic` 类里加一个 `should_continue_flow` 方法，逻辑照抄 `should_continue_market` 即可。
 - **`__init__.py` 导出**：`tradingagents/agents/__init__.py` 要导出 `create_flow_analyst`，否则 `setup.py` 顶部的 `from tradingagents.agents import (...)` 会失败。
 
 ### 自检清单
