@@ -115,7 +115,7 @@ class AgentState(MessagesState):
 | 运行参数 | `company_of_interest` / `asset_type` / `trade_date` | `create_initial_state` | 所有 agent |
 | 标的身份 | `instrument_context` | `_run_graph` 预解析 | 所有 agent（通过 prompt 注入） |
 | 记忆 | `past_context` | `_run_graph` 从 memory log 取 | Portfolio Manager |
-| 工作内存 | `messages` / `sender` | Analyst、Trader、Msg Clear | Analyst、路由器 |
+| 工作内存 | `messages` | Analyst、Trader、Msg Clear | Analyst、路由器 |
 | 分析产出 | `market_report` / `sentiment_report` / `news_report` / `fundamentals_report` | 4 个分析师 | Researcher、Debator、RM、PM |
 | 投资辩论 | `investment_debate_state` / `investment_plan` | Researcher、Research Manager | Trader、Portfolio Manager |
 | 交易 | `trader_investment_plan` | Trader | Debator、Portfolio Manager |
@@ -380,6 +380,7 @@ sequenceDiagram
     participant MA as Market Analyst
     participant SA as Sentiment Analyst
     participant Bull as Bull Researcher
+    participant Bear as Bear Researcher
     participant RM as Research Manager
     participant TR as Trader
     participant PM as Portfolio Manager
@@ -394,7 +395,7 @@ sequenceDiagram
     Bull->>S: investment_debate_state 整体替换<br/>count: 0→1, current_response="Bull..."
     Note over S: bear_history 原样拷贝保住
 
-    Bull->>S: count: 1→2 (Bear 发言后)
+    Bear->>S: investment_debate_state 整体替换<br/>count: 1→2, current_response="Bear..."
 
     RM->>S: investment_debate_state.judge_decision=决策<br/>investment_plan=markdown 字符串
 

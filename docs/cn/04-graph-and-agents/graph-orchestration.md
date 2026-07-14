@@ -273,7 +273,7 @@ return {
 几个要点：
 
 - `messages` 起手是一条 `"human"` 消息，内容就是公司名（或 ticker）。这是触发第一个分析师的"指令"。
-- `investment_debate_state` 和 `risk_debate_state` 是嵌套子状态，初始时 `count=0`、所有 history 空、`current_response`/`latest_speaker` 空。空字符串初始值是路由器的关键——`should_continue_debate` 第一次调用时 `current_response=""`，不 startswith "Bull"，所以走 `return "Bull Researcher"`，让 Bull 先发言。
+- `investment_debate_state` 和 `risk_debate_state` 是嵌套子状态，初始时 `count=0`、所有 history 空、`current_response`/`latest_speaker` 空。Bull 和 Aggressive 先发言不靠路由器看到空字符串——它们由直接边进入（`setup.py:135` 的 `add_edge(current_clear, "Bull Researcher")`、`setup.py:145` 的 `add_edge("Trader", "Aggressive Analyst")`）。路由器只在辩手发言后才被调用，此时 `current_response`/`latest_speaker` 已是发言前缀。
 - 4 个 report 初始为空字符串，分析师节点会把它们逐个填上。
 - `instrument_context` 和 `past_context` 不在这里生成，而是由 `_run_graph` 在调用前注入（见下一节）。
 
@@ -368,7 +368,7 @@ sequenceDiagram
 
     rect rgb(255, 250, 240)
         Note over G,S: 阶段二：投资辩论
-        G->>S: Bull Researcher (current_response=""→Bull)
+        G->>S: Bull Researcher (直接边: Msg Clear→Bull)
         Note over S: count=1, current_response="Bull Analyst: ..."
         G->>S: should_continue_debate
         Note over S: count=1 < 2*1=2<br/>且 startswith Bull→Bear
@@ -385,7 +385,7 @@ sequenceDiagram
 
     rect rgb(248, 240, 255)
         Note over G,S: 阶段三：风险辩论
-        G->>S: Aggressive (latest_speaker=""→Aggressive)
+        G->>S: Aggressive (直接边: Trader→Aggressive)
         Note over S: count=1
         G->>S: should_continue_risk_analysis
         Note over S: count=1 < 3*1=3<br/>latest_speaker Aggressive→Conservative

@@ -217,7 +217,7 @@ provider 注册表里 `openai_compatible` 显式指定了这个类：
 ),
 ```
 
-而 Ollama 走的是默认的 `NormalizedChatOpenAI`，因为 Ollama 的 tool-calling 实现相对标准，能力表会按具体模型 ID 判断要不要抑制 `tool_choice`。
+而 Ollama 走的是默认的 `NormalizedChatOpenAI`。Ollama 模型不在能力表里（`_BY_ID` 和 `_BY_PATTERN` 只收录了 DeepSeek 和 MiniMax），所以 `get_capabilities` 一律返回默认值（`supports_tool_choice=True`）。
 
 ---
 

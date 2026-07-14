@@ -174,9 +174,9 @@ tools = [
 
 注意它没有调用宏观数据的工具——基本面是公司层面的，宏观是 News Analyst 的领地。这种工具分配在 prompt 层就划清了角色边界，避免两个分析师重复跑同一份数据。
 
-### 四个分析师共享的 prompt 模板
+### 三个分析师共享的 prompt 模板
 
-`market_analyst.py:58-74`、`news_analyst.py:33-49`、`fundamentals_analyst.py:32-48` 用的是几乎一样的 ChatPromptTemplate：
+`market_analyst.py:58-74`、`news_analyst.py:33-49`、`fundamentals_analyst.py:32-48` 用的是几乎一样的 ChatPromptTemplate。Sentiment Analyst 不在这三人之列——它不用 tool-calling，prompt 模板（`sentiment_analyst.py:82-94`）省掉了工具相关的部分：
 
 ```python
 prompt = ChatPromptTemplate.from_messages(

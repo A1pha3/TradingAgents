@@ -72,10 +72,10 @@ Step 2: Analysis Date
 
 ```
 Step 3: Output Language
-> 中文
+> Chinese (中文)
 ```
 
-选 `中文`。这会让最终报告和分析师报告用中文输出。注意：**Agent 之间的内部辩论始终保持英文**，这是为了保证 LLM 推理质量。
+选 `Chinese (中文)`。这会让整条流水线——分析师报告、多空辩论、风险辩论、最终决策——全部用中文输出。
 
 ### 步骤 4：选择分析师
 
@@ -116,14 +116,12 @@ CLI 菜单列出 17 个供应商条目（OpenAI / Anthropic / Google / xAI / Dee
 ### 步骤 7：选择模型
 
 ```
-Step 7: Deep Thinking Model (for judges)
-> gpt-5.5
-
-Step 7b: Quick Thinking Model (for analysts and researchers)
-> gpt-5.4-mini
+Step 7: Thinking Agents
+> Quick Thinking Model: gpt-5.4-mini
+> Deep Thinking Model: gpt-5.5
 ```
 
-Deep 模型给两个裁判（Research Manager、Portfolio Manager）用，负责复杂裁决；Quick 模型给分析师和辩手用，省钱。第一次用默认值。
+Quick 模型给分析师和辩手用，省钱；Deep 模型给两个裁判（Research Manager、Portfolio Manager）用，负责复杂裁决。第一次用默认值。
 
 ### 步骤 8：思考配置
 
@@ -166,11 +164,11 @@ Step 8: Reasoning Effort
 
 ## 读懂结果
 
-运行结束后，你会看到两个东西：终端打印的完整报告，和询问是否保存的提示。
+运行结束后，CLI 先打印 "Analysis Complete!" 和耗时摘要，然后依次问两个问题：是否保存报告、是否在终端显示完整报告。
 
 ### 终端报告
 
-报告分五部分，对应五个团队：
+保存完会再问 `Display full report on screen? [Y/n]`，输入 `Y` 把完整报告打印到屏幕。报告分五部分，对应五个团队：
 
 ```
 I. Analyst Team（分析师团队）
@@ -197,10 +195,11 @@ V. Portfolio Management（组合管理）
 ### 保存报告
 
 ```
-Save the complete report to disk? [Y/n]: Y
+Save report? [Y/n]: Y
+Save path (press Enter for default): 
 ```
 
-输入 `Y` 保存。报告会写到默认路径：
+第一个问是否保存，输入 `Y`；第二个问保存路径，直接回车用默认路径：
 
 ```
 ./reports/NVDA_20260713_193015/
@@ -220,13 +219,7 @@ Save the complete report to disk? [Y/n]: Y
 
 ### 评级信号
 
-`tradingagents analyze` 命令最后会在终端打印一行：
-
-```
-Final Decision: Buy
-```
-
-这是从 `final_trade_decision` 文本里提取的 5 级评级信号。5 级体系：
+最终决策里带一个 5 级评级，由 Portfolio Manager 通过结构化输出给出。CLI 不单独打印这行评级——它包含在最终决策报告里（`5_portfolio/decision.md`）。如果你用 Python API，`propagate()` 返回的 `decision_signal` 就是提取出来的评级字符串。5 级体系：
 
 | 评级 | 含义 |
 |------|------|
@@ -280,10 +273,10 @@ python3 -c "import os; from dotenv import load_dotenv; load_dotenv(); print(os.g
 
 ### Q5：想用中文但报告还是英文
 
-检查步骤 3 是否真的选了 `中文`。也可以用环境变量固定语言，免去每次选择：
+检查步骤 3 是否真的选了 `Chinese (中文)`。也可以用环境变量固定语言，免去每次选择：
 
 ```bash
-export TRADINGAGENTS_OUTPUT_LANGUAGE=中文
+export TRADINGAGENTS_OUTPUT_LANGUAGE=Chinese
 ```
 
 ---

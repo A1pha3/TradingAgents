@@ -72,7 +72,7 @@ Config dict passed to `TradingAgentsGraph(config=...)`. Key fields:
 - `llm_provider`, `deep_think_llm`, `quick_think_llm`, `backend_url`
 - `max_debate_rounds`, `max_risk_discuss_rounds` — control debate iteration
 - `data_vendors` / `tool_vendors` — data source selection
-- `output_language` — language for analyst reports and final decision (debates stay English)
+- `output_language` — language for the full pipeline including debates (all agents localize via `get_language_instruction`)
 - `results_dir` — output directory (env override: `TRADINGAGENTS_RESULTS_DIR`)
 
 ### CLI

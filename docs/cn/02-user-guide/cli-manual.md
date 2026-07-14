@@ -99,14 +99,14 @@ Step 2: Analysis Date (YYYY-MM-DD)
 
 ```
 Step 3: Output Language
-> 中文
+> Chinese (中文)
 ```
 
 **跳过条件**：设置了 `TRADINGAGENTS_OUTPUT_LANGUAGE`。
 
-支持 11 种语言 + Custom（`cli/utils.py:653-688`）：English、中文、日本語、한국어、हिन्दी、Español、Português、Français、Deutsch、العربية、Русский。
+支持 11 种语言 + Custom（`cli/utils.py:653-688`）：English、Chinese、Japanese、Korean、Hindi、Spanish、Portuguese、French、German、Arabic、Russian（CLI 显示时附带原生文字，如 `Chinese (中文)`）。
 
-**重要细节**：输出语言只影响**分析师报告和最终决策的呈现语言**，不影响 Agent 之间的内部辩论。辩论保持英文，因为这是 LLM 推理质量最稳定的语言。这个设计决策的动机详见 [设计哲学](../03-architecture/design-philosophy.md)。
+**重要细节**：输出语言影响**所有产出报告内容的 Agent**——分析师、研究员、辩手、裁判、交易员——包括多空辩论和风险辩论。设成中文后整条流水线都用中文产出。这个设计决策的动机详见 [设计哲学](../03-architecture/design-philosophy.md)。
 
 详见 [多语言输出](output-language.md)。
 
@@ -127,8 +127,8 @@ Step 4: Select Analysts (space to toggle, enter to confirm)
 | 分析师 | 数据维度 | 工具 |
 |--------|---------|------|
 | **Market Analyst** | 技术面（均线、MACD、RSI 等） | `get_stock_data`、`get_indicators`、`get_verified_market_snapshot` |
-| **Sentiment Analyst** | 社交情绪（Reddit、StockTwits） | 预取数据，不调工具 |
-| **News Analyst** | 新闻、宏观指标、预测市场 | `get_news`、`get_global_news`、`get_macro_indicators`、`get_prediction_markets` |
+| **Sentiment Analyst** | 社交情绪（新闻、StockTwits、Reddit） | 预取数据，不调工具 |
+| **News Analyst** | 新闻、内部交易、宏观指标、预测市场 | `get_news`、`get_global_news`、`get_insider_transactions`、`get_macro_indicators`、`get_prediction_markets` |
 | **Fundamentals Analyst** | 基本面（财报、PE、ROE） | `get_fundamentals`、`get_balance_sheet`、`get_cashflow`、`get_income_statement` |
 
 **自动行为**：如果你分析的是加密货币，Fundamentals Analyst 会被自动剔除（`cli/utils.py:90-99` 的 `filter_analysts_for_asset_type`）——加密货币没有传统财报。
@@ -182,11 +182,9 @@ CLI 菜单列出 17 个供应商条目（`cli/utils.py:338-366`；Qwen / GLM / M
 ### 步骤 7：选择模型
 
 ```
-Step 7: Deep Thinking Model (for judges)
-> gpt-5.5
-
-Step 7b: Quick Thinking Model (for analysts and researchers)
-> gpt-5.4-mini
+Step 7: Thinking Agents
+> Quick Thinking Model: gpt-5.4-mini
+> Deep Thinking Model: gpt-5.5
 ```
 
 **跳过条件**：设置了 `TRADINGAGENTS_DEEP_THINK_LLM` 或 `TRADINGAGENTS_QUICK_THINK_LLM`。
@@ -249,7 +247,7 @@ Display the complete report on screen? [Y/n]:
 
 ```env
 # 跳过步骤 3、5、6、7、8 的最小配置
-TRADINGAGENTS_OUTPUT_LANGUAGE=中文
+TRADINGAGENTS_OUTPUT_LANGUAGE=Chinese
 TRADINGAGENTS_MAX_DEBATE_ROUNDS=1
 TRADINGAGENTS_MAX_RISK_ROUNDS=1
 TRADINGAGENTS_LLM_PROVIDER=openai

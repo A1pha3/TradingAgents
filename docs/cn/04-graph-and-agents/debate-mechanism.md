@@ -31,7 +31,7 @@ TradingAgents 的两套辩论（投资辩论 + 风险辩论）是整套流水线
 flowchart LR
     subgraph ID["投资辩论（2 方）"]
         direction TB
-        I0["count=0<br/>current_response=''"] -->|路由| IBULL["Bull 发言<br/>count=1"]
+        I0["count=0<br/>current_response=''"] -->|直接边| IBULL["Bull 发言<br/>count=1"]
         IBULL -->|判断| ICHK1{"count≥2N?"}
         ICHK1 -->|否| IBEAR["Bear 发言<br/>count=2"]
         IBEAR -->|判断| ICHK2{"count≥2N?"}
@@ -42,7 +42,7 @@ flowchart LR
 
     subgraph RD["风险辩论（3 方）"]
         direction TB
-        R0["count=0<br/>latest_speaker=''"] -->|路由| RAGG["Aggressive 发言<br/>count=1"]
+        R0["count=0<br/>latest_speaker=''"] -->|直接边| RAGG["Aggressive 发言<br/>count=1"]
         RAGG -->|判断| RCHK1{"count≥3N?"}
         RCHK1 -->|否| RCON["Conservative 发言<br/>count=2"]
         RCON -->|判断| RCHK2{"count≥3N?"}
@@ -113,7 +113,7 @@ return "Bull Researcher"
 argument = f"Bull Analyst: {response.content}"   # 或 "Bear Analyst:"
 ```
 
-这套机制有一个微妙的特性：**初始 state 的 `current_response` 是空字符串**（`propagation.py:46`）。空字符串不 startswith "Bull"，所以第一次路由返回 `"Bull Researcher"`，Bull 先发言。这是 Bull 优先的真正原因，不是图拓扑上的顺序——图里 Bull 和 Bear 都接到同一个路由器。
+Bull 先发言是图拓扑决定的，不是路由器——最后一个分析师的 `Msg Clear` 节点有一条直接边指向 `Bull Researcher`（`setup.py:135`）。路由器 `should_continue_debate` 只挂在 Bull 和 Bear 节点上（`add_conditional_edges`），在它们发言之后才被调用。第一次调用时 `current_response` 已经是 `"Bull Analyst: ..."`（非空），路由器据此返回 `"Bear Researcher"`。`return "Bull Researcher"` 的默认分支用于 Bear 发言后把控制权交回 Bull，而不是靠初始空字符串触发。
 
 ### 状态机：完整的发言顺序
 
@@ -141,7 +141,7 @@ stateDiagram-v2
 
 ```
 初始: count=0, current_response=""
-1. 路由 → Bull Researcher (因为 current_response="" 不 startswith "Bull")
+1. 直接边 → Bull Researcher (Msg Clear→Bull，`setup.py:135`)
 2. Bull 发言: count=1, current_response="Bull Analyst: ..."
 3. 路由: count=1 < 2*1=2，且 startswith "Bull" → Bear Researcher
 4. Bear 发言: count=2, current_response="Bear Analyst: ..."
@@ -222,7 +222,7 @@ return "Aggressive Analyst"
 
 `latest_speaker` 取的是 "Aggressive" / "Conservative" / "Neutral" 这种短前缀（不带 "Analyst"），由各 debator 在状态更新时显式设置（`aggressive_debator.py:48` 设 `"Aggressive"`，`conservative_debator.py:48` 设 `"Conservative"`，`neutral_debator.py:48` 设 `"Neutral"`）。`startswith` 匹配让前缀即使被加上后缀也能识别。
 
-轮转规则：**Aggressive → Conservative → Neutral → 循环**。注意初始 `latest_speaker=""`（`propagation.py:57`），三个 startswith 都不匹配，落入最后的 `return "Aggressive Analyst"` 分支，所以 Aggressive 永远先发言。
+轮转规则：**Aggressive → Conservative → Neutral → 循环**。Aggressive 先发言同样是图拓扑决定的——Trader 有一条直接边指向 Aggressive Analyst（`setup.py:145`）。`return "Aggressive Analyst"` 的默认分支用于 Neutral 发言后把控制权交回 Aggressive（此时 `latest_speaker="Neutral"`，三个 startswith 都不匹配），而不是靠初始空字符串触发。
 
 ### 状态机：三方的轮转
 
@@ -252,7 +252,7 @@ stateDiagram-v2
 
 ```
 初始: count=0, latest_speaker=""
-1. 路由 → Aggressive (3 个 startswith 都不匹配 → 默认分支)
+1. 直接边 → Aggressive (Trader→Aggressive，`setup.py:145`)
 2. Aggressive 发言: count=1, latest_speaker="Aggressive"
 3. 路由: count=1 < 3*1=3，startswith "Aggressive" → Conservative
 4. Conservative 发言: count=2, latest_speaker="Conservative"
@@ -305,7 +305,7 @@ new_risk_debate_state = {
 | 阈值系数 | 2 | 3 | 参与方数 |
 | 路由字段 | `current_response` | `latest_speaker` | 三方需要专门字段 |
 | 路由判断 | `startswith("Bull")` 二分 | 三段 `startswith` + 默认 | 二分 vs 三态 |
-| 状态字段数 | 5 | 9 | 三方 history/response 翻倍 |
+| 状态字段数 | 6 | 10 | 三方 history/response 翻倍（含 judge_decision） |
 
 ## 环境变量与默认值
 

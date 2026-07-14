@@ -102,7 +102,7 @@ ta = TradingAgentsGraph(config=DEFAULT_CONFIG)         # 显式传同一份
 | 键 | 实际创建的分析师 | 数据工具 |
 |----|----------------|---------|
 | `"market"` | Market Analyst | 股价、技术指标、市场快照 |
-| `"social"` | **Sentiment Analyst**（情绪分析师） | 新闻类工具 |
+| `"social"` | **Sentiment Analyst**（情绪分析师） | 预取新闻/StockTwits/Reddit，不走 tool-calling |
 | `"news"` | News Analyst | 新闻、内部交易、宏观指标、预测市场 |
 | `"fundamentals"` | Fundamentals Analyst | 基本面、资产负债表、现金流、利润表 |
 
@@ -155,7 +155,7 @@ _, decision = ta.propagate("TSLA", "2024-05-10")
 | `backend_url` | `None` | 自定义模型端点 |
 | `max_debate_rounds` | `1` | 多空辩论轮数 |
 | `max_risk_discuss_rounds` | `1` | 风险讨论轮数 |
-| `output_language` | `"English"` | 报告输出语言，设成 `"中文"` 可得中文报告（CLI 菜单值，见 [多语言输出](output-language.md)） |
+| `output_language` | `"English"` | 输出语言，设成 `"Chinese"` 可得中文报告（CLI 菜单值，见 [多语言输出](output-language.md)） |
 | `checkpoint_enabled` | `False` | 断点续跑开关 |
 
 **环境变量也能改这些键**。`DEFAULT_CONFIG` 在加载时已经把 `TRADINGAGENTS_*` 环境变量叠加上去了，所以你既可以在代码里改 `config["..."]`，也可以在 `.env` 里写 `TRADINGAGENTS_MAX_DEBATE_ROUNDS=3`。两种方式的区别：代码里的硬编码会忽略环境变量，`.env` 的方式可以被运行时覆盖。`main.py` 顶部的注释把这层取舍写得很清楚。
@@ -184,7 +184,7 @@ _, decision = ta.propagate("MSFT", "2024-05-10")
 print("决策:", decision)
 print("统计:", stats.get_stats())
 # 示例输出：
-# 决策: 买入
+# 决策: Buy
 # 统计: {'llm_calls': 28, 'tool_calls': 14, 'tokens_in': 52000, 'tokens_out': 3100}
 ```
 
@@ -249,7 +249,7 @@ print("报告目录:", report_path)
 
 `save_reports(final_state, ticker, save_path=None)` 的行为：
 
-- `save_path=None`：在 `results_dir/reports/{ticker}_{时间戳}/` 下生成报告树，和 CLI 产物一致
+- `save_path=None`：在 `results_dir/reports/{ticker}_{时间戳}/` 下生成报告树（报告树结构与 CLI 产物一致，但保存到 `results_dir` 而非当前工作目录）
 - `save_path=Path(...)`：写到指定目录
 - 返回值是写好的目录路径（`Path` 对象）
 

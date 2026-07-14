@@ -103,8 +103,8 @@ DEFAULT_CONFIG = _apply_env_overrides({
     # Checkpoint/resume: when True, LangGraph saves state after each node
     # so a crashed run can resume from the last successful step.
     "checkpoint_enabled": False,
-    # Output language for analyst reports and final decision
-    # Internal agent debate stays in English for reasoning quality
+    # Output language for the full pipeline (analysts, debaters, managers,
+    # trader). Non-English runs localize all agents via get_language_instruction().
     "output_language": "English",
     # Debate and discussion settings
     "max_debate_rounds": 1,

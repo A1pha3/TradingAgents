@@ -95,7 +95,7 @@ if not os.environ.get("TRADINGAGENTS_MAX_RISK_ROUNDS"):
 | 键名 | 默认值 | 可覆盖 | 说明 |
 |------|--------|--------|------|
 | `checkpoint_enabled` | `False`（`default_config.py:105`） | `TRADINGAGENTS_CHECKPOINT_ENABLED`、`--checkpoint`/`--no-checkpoint` | 断点续跑开关，详见 [断点续跑](../06-internals/checkpointing.md) |
-| `output_language` | `"English"`（`default_config.py:108`） | `TRADINGAGENTS_OUTPUT_LANGUAGE` | 最终报告与分析员报告的输出语言；**内部辩论始终用英文**以保证推理质量 |
+| `output_language` | `"English"`（`default_config.py:108`） | `TRADINGAGENTS_OUTPUT_LANGUAGE` | 整条流水线的输出语言（含分析师报告、辩论、最终决策） |
 
 ### 辩论设置（`default_config.py:110-112`）
 
@@ -241,7 +241,7 @@ config["tool_vendors"] = {
 | `TRADINGAGENTS_DEEP_THINK_LLM` | `deep_think_llm` | str | `claude-sonnet-4-5` |
 | `TRADINGAGENTS_QUICK_THINK_LLM` | `quick_think_llm` | str | `gpt-5.4-mini` |
 | `TRADINGAGENTS_LLM_BACKEND_URL` | `backend_url` | str | `http://localhost:11434/v1` |
-| `TRADINGAGENTS_OUTPUT_LANGUAGE` | `output_language` | str | `中文` |
+| `TRADINGAGENTS_OUTPUT_LANGUAGE` | `output_language` | str | `Chinese` |
 | `TRADINGAGENTS_MAX_DEBATE_ROUNDS` | `max_debate_rounds` | int | `3` |
 | `TRADINGAGENTS_MAX_RISK_ROUNDS` | `max_risk_discuss_rounds` | int | `2` |
 | `TRADINGAGENTS_CHECKPOINT_ENABLED` | `checkpoint_enabled` | bool | `true`（接受 `true/1/yes/on` 与 `false/0/no/off`） |
@@ -338,15 +338,15 @@ TRADINGAGENTS_LLM_MAX_RETRIES=6
 
 ### 场景 3：中文输出配置（团队都看中文）
 
-目标：最终报告和分析员报告统一中文，但不动内部辩论。
+目标：整条流水线统一中文输出——分析师报告、多空辩论、风险辩论、最终决策。
 
 ```env
 # .env
 OPENAI_API_KEY=sk-...
-TRADINGAGENTS_OUTPUT_LANGUAGE=中文
+TRADINGAGENTS_OUTPUT_LANGUAGE=Chinese
 ```
 
-设了之后，CLI 的步骤 3（输出语言）会自动跳过。要点：`output_language` 只影响对外的分析师报告和最终决策文本，**Agent 之间的内部辩论始终是英文**（`default_config.py:106-108` 注释），这是为了保证 LLM 的推理质量，不要试图改掉。多语言支持的完整说明见 [多语言输出](output-language.md)。
+设了之后，CLI 的步骤 3（输出语言）会自动跳过。`output_language` 对所有产出报告内容的 Agent 生效（分析师、研究员、辩手、裁判、交易员），非英文运行产出的是完全本地化的报告。多语言支持的完整说明见 [多语言输出](output-language.md)。
 
 ### 场景 4：无人值守 / CI 自动化
 

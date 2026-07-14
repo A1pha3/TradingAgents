@@ -14,7 +14,7 @@ TradingAgents 里"报告"其实指两件不同步的事，先分清楚：
 | **实时报告** | CLI 运行时的 `MessageBuffer` | 边跑边刷新的终端面板 + 每段写到 `results_dir/{ticker}/{date}/reports/{section}.md` | 让用户在 CLI 里看到进度 |
 | **落盘报告** | `write_report_tree`（CLI 和 Python API 共用） | `{save_path}/` 下的完整目录树 + `complete_report.md` | 跑完后的正式交付物 |
 
-两条通路的数据来源都是 graph 执行时的 `final_state`，但**写入时机、目录结构、合并方式都不一样**。最容易踩的坑是以为 CLI 里看到的报告就是落盘文件——其实它们是两套独立写法，只是内容最终一致。
+两条通路的数据来源都是 graph 执行时的 `final_state`，但**写入时机、目录结构、合并方式都不一样**。最容易踩的坑是以为 CLI 里看到的报告就是落盘文件——落盘文件（`complete_report.md`）有完整的五段（含风险辩论），但 CLI 内存里实时拼的 `final_report` 只含四段（缺风险辩论段），两者不完全相同。
 
 落盘报告才是 Python API 调用者和后续自动化流程真正消费的东西，下面重点讲它。
 

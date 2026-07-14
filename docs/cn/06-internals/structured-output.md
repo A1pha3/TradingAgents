@@ -30,7 +30,7 @@ flowchart TD
     end
     SA -->|"render_sentiment_report"| MD0["**Overall Sentiment**: Bullish\n**Score**: 7.5/10"]
     RM -->|"render_research_plan"| MD1["**Recommendation**: Buy\n**Rationale**: ..."]
-    TR -->|"render_trader_proposal"| MD2["**Action**: Buy\nFINAL TRANSACTION PROPOSAL: **Buy**"]
+    TR -->|"render_trader_proposal"| MD2["**Action**: Buy\nFINAL TRANSACTION PROPOSAL: **BUY**"]
     PM -->|"render_pm_decision"| MD3["**Rating**: Buy\n**Investment Thesis**: ..."]
     AN --> MD["直接是 prose"]
     BL --> MD
@@ -77,7 +77,7 @@ class SentimentBand(str, Enum):
     BEARISH = "Bearish"
 ```
 
-`schemas.py:44-65`（PortfolioRating/TraderAction）、`schemas.py:258-271`（SentimentBand）。RM 和 PM 用 5 档（包含 Overweight / Underweight 这种仓位倾斜），Trader 只用 3 档（Buy / Hold / Sell），Sentiment Analyst 用 6 档情绪带（区分 Bullish/Bearish 的程度以及 Neutral 与 Mixed 的差异——Neutral 是信号弱，Mixed 是多空信号冲突）。注释解释了为什么 Trader 不需要 5 档：
+`schemas.py:44-65`（PortfolioRating/TraderAction）、`schemas.py:258-270`（SentimentBand）。RM 和 PM 用 5 档（包含 Overweight / Underweight 这种仓位倾斜），Trader 只用 3 档（Buy / Hold / Sell），Sentiment Analyst 用 6 档情绪带（区分 Bullish/Bearish 的程度以及 Neutral 与 Mixed 的差异——Neutral 是信号弱，Mixed 是多空信号冲突）。注释解释了为什么 Trader 不需要 5 档：
 
 > The Trader's job is to translate the Research Manager's investment plan into a concrete transaction proposal: should the desk execute a Buy, a Sell, or sit on Hold this round. Position sizing and the nuanced Overweight / Underweight calls happen later at the Portfolio Manager.
 
@@ -133,18 +133,18 @@ class SentimentBand(str, Enum):
 
 ### SentimentReport：情绪分析师的产出
 
-`schemas.py:273-326`。四个字段：
+`schemas.py:273-325`。四个字段：
 
 | 字段 | 类型 | 作用 |
 |------|------|------|
 | `overall_band` | `SentimentBand` | 6 档情绪分类 |
 | `overall_score` | `float`（0-10） | 量化情绪强度，10 最看多 |
 | `confidence` | `Literal["low","medium","high"]` | 分析师对自身判断的置信度 |
-| `narrative` | `str` | 2-4 段自然语言分析，解释分数和分类 |
+| `narrative` | `str` | 完整情绪分析，含 5 部分：逐源分析、跨源分歧、主导叙事、催化剂与风险、markdown 汇总表 |
 
 Sentiment Analyst 是四个分析师里唯一用结构化输出的。原因在于情绪分析的本质：它的产物需要被下游（多空辩手、PM）快速比较和引用。`overall_band` 和 `overall_score` 提供可量化的锚点，`narrative` 保留可读的推理。而 Market/News/Fundamentals Analyst 产出的是叙述性报告，结构化反而会损失信息。
 
-`sentiment_analyst.py:58` 用 `bind_structured(llm, SentimentReport, ...)` 绑定 schema，走和其他三个结构化 agent 相同的 `invoke_structured_or_freetext` 降级路径。渲染函数是 `render_sentiment_report`（`schemas.py:328-342`），输出带 `**Overall Sentiment:**` 头部的 markdown。
+`sentiment_analyst.py:58` 用 `bind_structured(llm, SentimentReport, ...)` 绑定 schema，走和其他三个结构化 agent 相同的 `invoke_structured_or_freetext` 降级路径。渲染函数是 `render_sentiment_report`（`schemas.py:328-341`），输出带 `**Overall Sentiment:**` 头部的 markdown。
 
 ---
 
@@ -397,7 +397,7 @@ _DEFAULT = ModelCapabilities(
 
 未知模型默认假设什么都支持。这是有意的选择——大多数新模型都是 OpenAI-compatible 的标准实现，默认全支持能让新模型开箱即用。如果某个新模型有 quirk，等用户报 issue 再补到 `_BY_ID`。
 
-### 为什么 DeepSeek 不能用 tool_choice
+### 为什么 DeepSeek thinking 模型不能用 tool_choice
 
 这是能力表最典型的应用案例。`capabilities.py:54-60`：
 

@@ -34,7 +34,8 @@ sequenceDiagram
 
     Note over Run2: 阶段 B：延迟反思
     Run2->>Log: get_pending_entries()
-    Log-->>Run2: 返回所有 pending，按 NVDA 过滤
+    Log-->>Run2: 返回所有 pending（不过滤）
+    Note over Run2: _resolve_pending_entries 按 NVDA 过滤
     Run2->>YF: 拉 NVDA（标的）5 个交易日收盘价
     Run2->>YF: 拉 SPY（基准）同期收盘价
     YF-->>Run2: Close 序列
@@ -157,7 +158,7 @@ tmp_path.replace(self._log_path)
 update_map = {(u["trade_date"], u["ticker"]): u for u in updates}
 ```
 
-遍历日志每个 block 时，直接查表命中，命中后从 map 里 `del` 掉，避免重复匹配。这条路径是 `_resolve_pending_entries` 实际用的，因为一个 ticker 可能有多个 pending（比如你连续跑了同一天多次，或者跑了多个日期）。
+遍历日志每个 block 时，直接查表命中，命中后从 map 里 `del` 掉，避免重复匹配。这条路径是 `_resolve_pending_entries` 实际用的，因为一个 ticker 可能有多个 pending（比如你跑了多个不同日期的同一只票——同一 `(trade_date, ticker)` 不会重复创建 pending，`store_decision` 有幂等保护）。
 
 ---
 
@@ -187,7 +188,7 @@ def get_past_context(self, ticker, n_same=5, n_cross=3):
 | same-ticker | 同一个 ticker 的 resolved | 最近 5 条 | 完整决策 + 反思 | 让 PM 看到这个标的自己的历史判断对不对 |
 | cross-ticker | 其他 ticker 的 resolved | 最近 3 条 | **只**注入反思 | 把跨标的教训迁移过来，不污染当前标的的判断 |
 
-cross-ticker 只注入反思是关键设计——你不希望 PM 把上次 AAPL 的完整决策当成 NVDA 的参考，但"成长股财报前要减仓"这种抽象教训是有用的。`_format_reflection_only`（`memory.py:293-299`）就是干这个的，连决策正文都不带。
+cross-ticker 只注入反思是关键设计——你不希望 PM 把上次 AAPL 的完整决策当成 NVDA 的参考，但"成长股财报前要减仓"这种抽象教训是有用的。`_format_reflection_only`（`memory.py:293-299`）就是干这个的，连决策正文都不带（reflection 为空时回退到决策正文前 300 字兜底）。
 
 **只取 resolved**（L72）是另一条隐含规则。pending 条目没有反思，对当前决策没有"经验"价值，所以 `get_past_context` 会跳过它们。这也意味着：你第一次跑一个全新的 ticker 时，`past_context` 是空字符串，PM 完全靠当前分析；第二次以后才会有历史可参考。
 
@@ -249,7 +250,7 @@ return raw, alpha, actual_days
 
 ### benchmark 自动选择
 
-`_resolve_benchmark`（`trading_graph.py:230-249`）。算 alpha 要有个基准，不同市场的 ticker 该用不同的基准：
+`_resolve_benchmark`（`trading_graph.py:230-249`）从 config 取 `benchmark_map`（`benchmark_map = self.config.get("benchmark_map", {})`），下面的字典是 `default_config.py:152-163` 定义的默认值。算 alpha 要有个基准，不同市场的 ticker 该用不同的基准：
 
 ```python
 benchmark_map = {
