@@ -57,7 +57,7 @@ programmatic API alike (#1037)."""
 
 ## 三个核心 fixture（`conftest.py`）
 
-`tests/conftest.py` 只有 68 行，但定义了三个 fixture，决定了整套测试能不能在 CI 里跑起来。理解它们的作用是写新测试的前提。
+`tests/conftest.py` 只有 67 行，但定义了三个 fixture，决定了整套测试能不能在 CI 里跑起来。理解它们的作用是写新测试的前提。
 
 ### fixture 1：`pytest_configure` —— 注册 marker
 
@@ -177,7 +177,7 @@ addopts = "-ra --strict-markers"
 ```bash
 pytest -m unit          # 只跑单元测试（绝大多数用例）
 pytest -m integration   # 只跑集成测试（需真实 API，默认 CI 跳过）
-pytest -m smoke         # 只跑冒烟测试
+pytest -m smoke         # 只跑冒烟测试（当前仓库尚无 smoke 测试，marker 为预留）
 pytest -m "not integration"   # 跑除集成之外的所有测试（CI 默认行为）
 ```
 

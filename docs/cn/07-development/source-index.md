@@ -31,7 +31,7 @@
 
 ## Agent 系统
 
-`tradingagents/agents/` 下。13 个 LLM 角色按职责分布在四个子目录。
+`tradingagents/agents/` 下。12 个 LLM 角色按职责分布在五个子目录。
 
 ### 分析师（`agents/analysts/`）
 
@@ -100,7 +100,7 @@ LLM 结构化输出（让模型按 schema 填字段）的入口。
 | 错误体系 | `dataflows/errors.py` | `VendorError`、`NoMarketDataError`、`VendorRateLimitError`、`VendorNotConfiguredError` |
 | 全局配置 | `dataflows/config.py` | `get_config` / `set_config` |
 | ticker 归一化 | `dataflows/symbol_utils.py` | `normalize_symbol`（L104） |
-| 路径安全组件 | `dataflows/utils.py` | `safe_ticker_component`（L17） |
+| 路径安全组件 | `dataflows/utils.py` | `safe_ticker_component`（L13） |
 | 市场数据校验（防前视偏差） | `dataflows/market_data_validator.py` | — |
 
 ### 各家 Vendor 实现
@@ -198,7 +198,7 @@ LLM 结构化输出（让模型按 schema 填字段）的入口。
 |---------|-----------|---------|
 | 共享 fixture（防 CI 无 key 卡住） | `tests/conftest.py` | `_dummy_api_keys`（L32）、`_isolate_config`（L40）、`mock_llm_client`（L59）、`pytest_configure`（L9） |
 
-测试套件的整体设计、按主题分组的 51 个测试文件清单、运行方式见 [测试体系](./testing.md)。
+测试套件的整体设计、按主题分组的 71 个测试文件清单、运行方式见 [测试体系](./testing.md)。
 
 ---
 

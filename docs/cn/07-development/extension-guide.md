@@ -183,7 +183,7 @@ explicitly."""
 - **`if len(result.tool_calls) == 0` 才填 report**：这是"何时算完成"的判断。如果忽略，会把中间步骤误当成最终报告。
 - **`get_language_instruction()`**：保证非英文运行时这一段也跟着本地化，否则最终报告会半中半英。
 - **`get_instrument_context_from_state(state)`**：把标的真实身份（公司名 / 交易所 / 资产类型）注入 prompt，避免模型看着 K 线脑补成另一家公司（参见 `agent_utils.py` 里关于 #814 的注释）。
-- **prompt 里那句 `FINAL TRANSACTION PROPOSAL` 前缀约定**：是整张图判断"是否收尾"的信号，删了会破坏下游 Research Manager 的解析。
+- **prompt 里那句 `FINAL TRANSACTION PROPOSAL` 前缀约定**：是 prompt 层面让团队知道何时收尾的协作信号，向后兼容外部可能 grep 它的代码；图的收尾判断实际靠 `tool_calls` 为空（`market_analyst.py:87`）。
 
 ### 步骤 3：在 `_create_tool_nodes` 加一行
 
@@ -299,12 +299,13 @@ if final_state.get("flow_report"):
 
 ### 步骤 10（可选）：默认配置
 
-如果希望默认开启，把 `DEFAULT_CONFIG` 里某个对应的字段（如默认 `selected_analysts`，目前是 `TradingAgentsGraph.__init__` 的参数，没进 DEFAULT_CONFIG）调整即可。一般情况留空，让用户在 CLI 选。
+如果要默认选中，需在 `TradingAgentsGraph.__init__` 的 `selected_analysts` 参数默认值里加 `flow`（该参数未进 `DEFAULT_CONFIG`，无法通过环境变量覆盖）。一般情况留空，让用户在 CLI 选。
 
-### 容易漏的两处
+### 容易漏的三处
 
 - **`conditional_logic` 需要加一个方法**：每个 Analyst 的"是否收尾"条件路由是 `getattr(self.conditional_logic, f"should_continue_{spec.key}")`（`setup.py:126`），所以要在 `ConditionalLogic` 类里加一个 `should_continue_flow` 方法，逻辑照抄 `should_continue_market` 即可。
 - **`__init__.py` 导出**：`tradingagents/agents/__init__.py` 要导出 `create_flow_analyst`，否则 `setup.py` 顶部的 `from tradingagents.agents import (...)` 会失败。
+- **`analyst_factories` 注册**：`setup.py:75` 的 `analyst_factories` 字典要加一行 `"flow": lambda: create_flow_analyst(self.quick_thinking_llm)`（`setup.py:99` 执行 `analyst_factories[spec.key]()`，漏了会直接 `KeyError`）。
 
 ### 自检清单
 
@@ -349,7 +350,7 @@ flowchart LR
 | `VendorRateLimitError` | 被 vendor 限流（429） | 跳下一个 vendor |
 | `VendorNotConfiguredError` | 缺 API key 或配置 | 跳下一个 vendor；若所有 vendor 都失败，把这个错上抛 |
 
-`NoMarketDataError` 必须带 `symbol`、`canonical`、`detail` 三参（`errors.py:34`），它们会被拼进 `NO_DATA_AVAILABLE:` 哨兵字符串，让 LLM 看清"为什么没数据"，而不是凭空补一个值。
+`NoMarketDataError` 构造时建议传入 `symbol`、`canonical`、`detail` 三参（`errors.py:34`，签名里只有 `symbol` 必填），它们会被拼进 `NO_DATA_AVAILABLE:` 哨兵字符串，让 LLM 看清"为什么没数据"，而不是凭空补一个值。
 
 ### 完整动作清单（5 步）
 
