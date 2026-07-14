@@ -360,7 +360,7 @@ primary_vendors = [v.strip() for v in vendor_config.split(',')]
 
 **缓存毒化防护**。如果一次失败的请求把空数据或错误数据写进缓存，后续所有读都会拿到脏数据。`load_ohlcv` 在写入缓存前先校验数据完整性，校验不过不写。
 
-陈旧阈值定义在模块常量 `MAX_OHLCV_STALE_DAYS = 10`（`stockstats_utils.py:88-122`），超过 10 天算陈旧。yfinance 限流的 429 由 `yf_retry`（`stockstats_utils.py:23-39`）做指数退避重试，重试用尽后由路由层接管。
+陈旧阈值由模块常量 `MAX_OHLCV_STALE_DAYS = 10`（`stockstats_utils.py:20`）控制，`_assert_ohlcv_not_stale`（`:88-122`）执行检查，超过 10 天算陈旧。yfinance 限流的 429 由 `yf_retry`（`stockstats_utils.py:23-39`）做指数退避重试，重试用尽后由路由层接管。
 
 ### Alpha Vantage：错误措辞分类
 

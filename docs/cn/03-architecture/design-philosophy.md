@@ -215,7 +215,7 @@ yfinance 的财报数据（资产负债表、现金流、利润表）以**会计
 
 TradingAgents 的解法是把"哪个模型接受什么 API 参数、用什么结构化输出方法"抽成一张**声明式的能力表**。客户端代码只查这张表，不硬编码模型名。加新模型就是改表，不动客户端。
 
-**源码解析**：能力表在 `capabilities.py`。每个模型的能力用一个 frozen dataclass 描述（`capabilities.py:29-46`）：
+**源码解析**：能力表在 `capabilities.py`。每个模型的能力用一个 frozen dataclass 描述（`capabilities.py:29-45`）：
 
 ```python
 @dataclass(frozen=True)

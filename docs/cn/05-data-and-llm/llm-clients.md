@@ -338,7 +338,7 @@ _BY_PATTERN: list[tuple[re.Pattern[str], ModelCapabilities]] = [
 
 ### OpenAI：`reasoning_effort` 只给推理模型
 
-`openai_client.py:171-180`：
+`openai_client.py:175-180`：
 
 ```python
 _OPENAI_REASONING_MODEL = re.compile(r"^(gpt-5|o[1-9])")
@@ -473,6 +473,8 @@ sequenceDiagram
 **共享模型列表（`model_catalog.py:16-78`）。** GLM、Qwen、MiniMax 的双区域 provider（国际 + 中国）共享同一份模型 ID 列表——因为两个区域 host 的是同一批模型，只是端点和账户不同。所以 `_GLM_MODELS` 同时被 `glm` 和 `glm-cn` 引用。
 
 **Custom-only provider（`model_catalog.py:10-13`）。** mistral、kimi、groq、nvidia、bedrock、openai_compatible 只提供「Custom model ID」选项，不给下拉列表。这些 provider 服务的模型变化频繁，硬编码列表很快过时，不如让用户直接输入自己的模型 ID。
+
+**动态模型列表（openrouter）。** openrouter 既不在 `_CUSTOM_ONLY` 也不在静态 `MODEL_OPTIONS` 里——CLI 选 openrouter 时会实时请求 `openrouter.ai/api/v1/models` 拉取可用模型（`cli/utils.py:212` 的 `_fetch_openrouter_models`），按最新排序供选择。openrouter 聚合的模型集合变化频繁，静态列表必然过时，所以走动态抓取。
 
 **DeepSeek 别名弃用（`model_catalog.py:129-132`）。** `deepseek-chat` / `deepseek-reasoner` 这两个别名在 2026-07-24 后弃用，现在都指向 V4 Flash。catalog 直接暴露 V4 ID，避免用户用到会变行为的别名。
 

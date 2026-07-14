@@ -155,7 +155,7 @@ _, decision = ta.propagate("TSLA", "2024-05-10")
 | `backend_url` | `None` | 自定义模型端点 |
 | `max_debate_rounds` | `1` | 多空辩论轮数 |
 | `max_risk_discuss_rounds` | `1` | 风险讨论轮数 |
-| `output_language` | `"English"` | 报告输出语言，设成 `"Chinese"` 可得中文报告 |
+| `output_language` | `"English"` | 报告输出语言，设成 `"中文"` 可得中文报告（CLI 菜单值，见 [多语言输出](output-language.md)） |
 | `checkpoint_enabled` | `False` | 断点续跑开关 |
 
 **环境变量也能改这些键**。`DEFAULT_CONFIG` 在加载时已经把 `TRADINGAGENTS_*` 环境变量叠加上去了，所以你既可以在代码里改 `config["..."]`，也可以在 `.env` 里写 `TRADINGAGENTS_MAX_DEBATE_ROUNDS=3`。两种方式的区别：代码里的硬编码会忽略环境变量，`.env` 的方式可以被运行时覆盖。`main.py` 顶部的注释把这层取舍写得很清楚。

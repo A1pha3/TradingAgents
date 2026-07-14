@@ -165,7 +165,7 @@ Step 6: LLM Provider
 
 **跳过条件**：设置了 `TRADINGAGENTS_LLM_PROVIDER`。
 
-支持 20 个供应商（`cli/utils.py:338-366`）：
+CLI 菜单列出 17 个供应商条目（`cli/utils.py:338-366`；Qwen / GLM / MiniMax 的国际与中国端点合并为一项，选完再二级选择区域）。框架注册表共支持 20 个供应商，详见 [LLM 客户端](../05-data-and-llm/llm-clients.md)。
 
 | 类别 | 供应商 |
 |------|--------|

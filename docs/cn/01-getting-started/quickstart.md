@@ -9,7 +9,7 @@
 
 ## 你将做什么
 
-我们用 CLI 分析 **NVDA（英伟达）** 在 **2024-05-10** 的交易前景。整个过程会经过 13 个 AI 角色协作，最终给出一个 5 级评级（Buy / Overweight / Hold / Underweight / Sell）和完整报告。
+我们用 CLI 分析 **NVDA（英伟达）** 在 **2024-05-10** 的交易前景。整个过程会经过 13 个角色协作（12 个 LLM 角色 + 1 个消息清理节点），最终给出一个 5 级评级（Buy / Overweight / Hold / Underweight / Sell）和完整报告。
 
 选 NVDA 是因为：它是高流动性美股，yfinance 数据完整，分析过程能充分展示框架能力。
 
@@ -111,7 +111,7 @@ Step 6: LLM Provider
 
 选你配了 Key 的供应商。第一次建议 OpenAI（如果你配的是 `OPENAI_API_KEY`）。
 
-完整列表有 20 个供应商（OpenAI / Anthropic / Google / xAI / DeepSeek / Qwen 双区 / GLM 双区 / MiniMax 双区 / OpenRouter / Mistral / Kimi / Groq / NVIDIA / Azure / Bedrock / Ollama / OpenAI-compatible）。
+CLI 菜单列出 17 个供应商条目（OpenAI / Anthropic / Google / xAI / DeepSeek / Qwen 双区 / GLM 双区 / MiniMax 双区 / OpenRouter / Mistral / Kimi / Groq / NVIDIA / Azure / Bedrock / Ollama / OpenAI-compatible）；其中 Qwen / GLM / MiniMax 选完再选国际或中国端点，注册表层面共 20 个，详见 [LLM 客户端](../05-data-and-llm/llm-clients.md)。
 
 ### 步骤 7：选择模型
 
@@ -299,7 +299,7 @@ export TRADINGAGENTS_OUTPUT_LANGUAGE=中文
 5. **3 个风险分析师**从激进、保守、中立三个立场审视这笔交易
 6. **组合经理**（用更强的模型）综合所有信息，给出最终决策
 
-这不是一个 LLM 一次性回答，而是 13 个角色经过严格编排的多轮协作。想理解每个环节的内部机制，从这里继续：
+这不是一个 LLM 一次性回答，而是 13 个角色（12 个 LLM + 消息清理节点）经过严格编排的多轮协作。想理解每个环节的内部机制，从这里继续：
 
 ---
 
