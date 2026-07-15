@@ -15,9 +15,9 @@
 
 # LLM 客户端 ⭐⭐⭐ 进阶分析
 
-TradingAgents 的 13 个角色都由 LLM 驱动，但「用哪家模型」这件事的复杂度被严重低估了。一个生产级的 LLM 客户端层要同时处理：原生 API 和 OpenAI 兼容 API 两种协议、20 个供应商各自的鉴权方式、双区域账户的端点隔离、推理模型特有的 `reasoning_content` 往返和 `reasoning_effort` 参数、不同模型对 `tool_choice` / `json_mode` 的差异化支持、以及本地服务器对强制参数的拒绝。本文分析的 LLM 客户端层（`llm_clients/`）解决的真正问题不是「调用模型的 SDK」，而是**把这些异构的、各有怪癖的模型 API，收敛成上层 agent 能用同一套代码调用的统一接口**。
+TradingAgents 的 12 个角色都由 LLM 驱动，但「用哪家模型」这件事的复杂度被严重低估了。一个生产级的 LLM 客户端层要同时处理：原生 API 和 OpenAI 兼容 API 两种协议、20 个供应商各自的鉴权方式、双区域账户的端点隔离、推理模型特有的 `reasoning_content` 往返和 `reasoning_effort` 参数、不同模型对 `tool_choice` / `json_mode` 的差异化支持、以及本地服务器对强制参数的拒绝。本文分析的 LLM 客户端层（`llm_clients/`）解决的真正问题不是「调用模型的 SDK」，而是**把这些异构的、各有怪癖的模型 API，收敛成上层 agent 能用同一套代码调用的统一接口**。
 
-这条管线最值得分析的设计是「声明式 provider 注册表」。传统的多 provider 客户端会为每个供应商写一个 `if` 分支或一个子类，导致代码量随供应商数线性膨胀。这里把 16 个 OpenAI 兼容供应商压缩成一张数据表，每个供应商一行声明式配置；真正需要定制代码的只有 3 个有 wire-format 怪癖的供应商。理解这个「数据代替分支」的取舍，是理解整个客户端层的钥匙。
+这条管线最值得分析的设计是「声明式 provider 注册表」。传统的多 provider 客户端会为每个供应商写一个 `if` 分支或一个子类，导致代码量随供应商数线性膨胀。这里把 16 个 OpenAI 兼容供应商压缩成一张数据表，每个供应商一行声明式配置；真正需要定制代码的只有 3 个供应商（DeepSeek 和 MiniMax 是 wire-format 怪癖，LocalCompatible 是 tool_choice 行为适配）。理解这个「数据代替分支」的取舍，是理解整个客户端层的钥匙。
 
 ---
 
@@ -49,7 +49,7 @@ flowchart TD
     end
 ```
 
-这四条主线相互独立：协议路由决定走哪个 SDK，内容归一化决定输出格式，能力表决定结构化输出方式，参数门控决定推理参数发不发。后面四节分别展开。
+这四条主线相互独立：协议路由决定走哪个 SDK，内容归一化决定输出格式，能力表决定结构化输出方式，参数门控决定推理参数发不发。正文展开成六节：内容归一化拆成「声明式注册表」（主线 2，怎么用数据表注册 provider）和「子类层级」（主线 3，哪几个需要定制代码）两节，能力表是主线 4，参数门控是主线 5，另加主线 6 讲 base_url 优先级。
 
 ### 完整 20 个 Provider 对照表
 
@@ -159,7 +159,7 @@ OPENAI_COMPATIBLE_PROVIDERS: dict[str, ProviderSpec] = {
 
 ### 这套设计的取舍
 
-「数据代替分支」的红利是：新增一个走 Chat Completions 的供应商，只要在注册表加一行，不用写任何新代码。代价是：所有「不能用声明式字段表达的」差异，必须落到 `chat_class` 子类里。所以你会看到三个定制子类——它们的诞生都是因为某个供应商的 wire-format 怪癖无法用字段表达。
+「数据代替分支」的红利是：新增一个走 Chat Completions 的供应商，只要在注册表加一行，不用写任何新代码。代价是：所有「不能用声明式字段表达的」差异，必须落到 `chat_class` 子类里。所以你会看到三个定制子类——其中 DeepSeek 和 MiniMax 是 wire-format 怪癖（reasoning_content 往返、reasoning_split 经 extra_body 注入），LocalCompatibleChatOpenAI 是 tool_choice 行为适配（本地服务器拒绝对象形式 tool_choice），都无法用声明式字段表达。
 
 ---
 
@@ -334,7 +334,7 @@ _BY_PATTERN: list[tuple[re.Pattern[str], ModelCapabilities]] = [
 
 ## 主线 5：参数门控——推理参数按模型家族判断
 
-「推理参数」（`reasoning_effort`、`effort`、`thinking_level`）只有特定模型家族接受，发错会被 API 400。每个原生 client 都有自己的门控逻辑。
+「推理参数」（`reasoning_effort`、`effort`、`thinking_level`）只有特定模型家族接受，发错会被 API 400。每个 provider（无论原生还是兼容）都有自己的门控逻辑。
 
 ### OpenAI：`reasoning_effort` 只给推理模型
 
@@ -462,7 +462,7 @@ sequenceDiagram
     DS-->>Agent: AIMessage(content=纯字符串,<br/>additional_kwargs={reasoning_content})
 ```
 
-这个案例展示了主线 1（路由走兼容注册表）、主线 2（声明式 spec 决定 chat_class）、主线 3（能力表门控 tool_choice）、主线 4（DeepSeek 子类的 reasoning_content 往返）如何配合。如果换成 `minimax` provider + `MiniMax-M2.7` 模型，能力表会返回 `requires_reasoning_split=True`，`MinimaxChatOpenAI` 会经 `extra_body` 注入 `reasoning_split=True`——同样的机制，不同的怪癖门控。
+这个案例展示了主线 1（路由走兼容注册表）、主线 2（声明式 spec 决定 chat_class）、主线 4（能力表门控 tool_choice）、主线 3（DeepSeek 子类的 reasoning_content 往返）如何配合。如果换成 `minimax` provider + `MiniMax-M2.7` 模型，能力表会返回 `requires_reasoning_split=True`，`MinimaxChatOpenAI` 会经 `extra_body` 注入 `reasoning_split=True`——同样的机制，不同的怪癖门控。
 
 ---
 

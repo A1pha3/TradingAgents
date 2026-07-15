@@ -346,9 +346,9 @@ primary_vendors = [v.strip() for v in vendor_config.split(',')]
 
 第一，空结果必须 raise `NoMarketDataError`，而不是返回空 DataFrame。一旦返回空，路由层无法区分「标的没数据」和「供应商暂时没响应」，哨兵机制就失效了。
 
-第二，`_assert_ohlcv_not_stale` 防陈旧数据。yfinance 偶尔会返回几周前的最后一行数据，这种「看似有数据」的失败比「明确没数据」更危险——LLM 会拿一个两周前的价格当成最新价。防护的逻辑是把返回的最后一行日期和今天比，超过阈值就 raise `NoMarketDataError`，`detail` 标记为 stale。这样它和「真正没数据」走同一条路径，路由层不需要特殊处理。
+第二，`_assert_ohlcv_not_stale` 防陈旧数据。yfinance 偶尔会返回几周前的最后一行数据，这种「看似有数据」的失败比「明确没数据」更危险——LLM 会拿一个两周前的价格当成最新价。防护的逻辑是把返回的最后一行日期和请求日期比，超过阈值就 raise `NoMarketDataError`，`detail` 标记为 stale。这样它和「真正没数据」走同一条路径，路由层不需要特殊处理。
 
-阈值 `MAX_OHLCV_STALE_DAYS = 10`（`stockstats_utils.py:20`）是一个需要解释的数字。它要在两个约束之间取交集：**宽到能跨长周末和连串节假日**（美股 Labor Day、感恩节、独立日周边常有 3-4 天无新 bar；叠加 yfinance 限流重试可达 5-6 天），同时**紧到能抓住 yfinance 偶发返回的陈旧帧**（issue #1021 修的就是 vendor 返回一年前的帧的情况）。设成 3 天会在节假日后的合法回测里误杀；设成 30 天则抓不住真正陈旧的数据。10 天是这两条约束的折中。
+阈值 `MAX_OHLCV_STALE_DAYS = 10`（`stockstats_utils.py:20`）是一个需要解释的数字。它要在两个约束之间取交集：**宽到能跨长周末和连串节假日**（美股 Labor Day、感恩节、独立日周边常有 3-4 天无新 bar），同时**紧到能抓住 yfinance 偶发返回的陈旧帧**（issue #1021 修的就是 vendor 返回一年前的帧的情况）。设成 3 天会在节假日后的合法回测里误杀；设成 30 天则漏掉中等程度陈旧（如 15-20 天）的帧。10 天是这两条约束的折中。
 
 `get_YFin_data_online` 里还有一个包容性修正：`end_date + 1`（`y_finance.py`，对应 issue #986/#987）。yfinance 的日期区间是左闭右开，少加一天会漏掉今天的数据。
 
@@ -366,15 +366,15 @@ primary_vendors = [v.strip() for v in vendor_config.split(',')]
 
 `_make_api_request`（`alpha_vantage_common.py:62-112`）把 Alpha Vantage 的错误响应翻译成路由层认识的异常。关键是错误分类的顺序（`alpha_vantage_common.py:99-110`）：**先检查 rate limit 措辞，再检查其他**。
 
-Alpha Vantage 的限流响应不是标准的 HTTP 429，而是一段包含 "rate limit" 字样的 JSON 文本。如果不先匹配 rate limit，它会被当成普通错误，路由层就不会跳到下一家。先匹配措辞，确保限流被正确翻译成 `VendorRateLimitError`。
+Alpha Vantage 的限流响应不是标准的 HTTP 429，而是一段 JSON 文本，里面同时包含 "rate limit" 和 "API key" 字样（比如 "your API key ... 25 requests per day"）。如果不先匹配 rate limit 措辞，这段文本会被误分类成 `AlphaVantageNotConfiguredError`（缺 Key 类），错误地记入 `first_error`——而真正的限流（`VendorRateLimitError`）不记 `first_error`。混淆两者会让最终输出档位判断出错。先匹配 rate limit 措辞，确保分类正确。
 
 ### FRED：宏观别名映射与描述性短语拒绝
 
-`fred.py` 的 `MACRO_SERIES`（`fred.py:37-72`）维护了 28 个宏观指标的别名映射，把 `"GDP"`、`"CPI"`、`"unemployment"` 这类人类友好的名字解析成 FRED 的官方 series ID。`_resolve_series_id`（`fred.py:95-115`）会拒绝描述性短语——如果一个字符串不匹配任何已知别名也不是合法 series ID，它会 raise，而不是猜测。LLM 经常会把一段自由描述（比如 "the rate of inflation last quarter"）当作指标名传进来，拒绝描述性短语能防止拿到错误的 series。
+`fred.py` 的 `MACRO_SERIES`（`fred.py:37-72`）维护了 28 个别名条目，覆盖 22 个宏观指标（如 `fed_funds_rate`/`federal_funds_rate`/`fed_funds` 三个别名都指向 `FEDFUNDS`），把 `"GDP"`、`"CPI"`、`"unemployment"` 这类人类友好的名字解析成 FRED 的官方 series ID。`_resolve_series_id`（`fred.py:95-115`）会拒绝描述性短语——如果一个字符串不匹配任何已知别名也不是合法 series ID，它会 raise，而不是猜测。LLM 经常会把一段自由描述（比如 "the rate of inflation last quarter"）当作指标名传进来，拒绝描述性短语能防止拿到错误的 series。
 
 ### 无 key 的公开端点
 
-Polymarket（`polymarket.py`）、StockTwits（`stocktwits.py`）走公开 Gamma API / 公开端点，不需要密钥。`_is_forward_looking`（`polymarket.py:47-65`）过滤出前向预测型市场（比如「年底降息几次」），过滤掉已经结算的历史市场。
+Polymarket（`polymarket.py`）走公开 Gamma API，StockTwits（`stocktwits.py`）走自己的公开端点（`api.stocktwits.com`），都不需要密钥。注意 StockTwits 是 Sentiment Analyst 直接调用的独立工具，不经 vendor 路由层。`_is_forward_looking`（`polymarket.py:47-65`）过滤出前向预测型市场（比如「年底降息几次」），过滤掉已经结算的历史市场。
 
 `reddit.py` 默认走 RSS（`reddit.py:93-144`），因为 JSON 端点会被 Reddit 的 WAF 返回 403（issue #862）。这是个绕过平台限制的实战决策。
 
@@ -398,13 +398,13 @@ Polymarket（`polymarket.py`）、StockTwits（`stocktwits.py`）走公开 Gamma
 
 `config.py` 的 `set_config`（`config.py:16-30`）做一层深合并：dict 键合并，标量键替换。这意味着用户传入的部分配置会和默认配置合并，而不是整体覆盖。一个只设了 `data_vendors` 的用户配置不会把 `tool_vendors` 清空。
 
-`utils.py` 的 `safe_ticker_component`（`utils.py:17-42`）防路径穿越。标的符号会被用作缓存文件名和日志文件名的一部分，如果用户（或 LLM）传入包含 `../` 的字符串，可能写出预期目录之外。这个函数校验标的只包含合法字符。
+`utils.py` 的 `safe_ticker_component`（`utils.py:13-38`）防路径穿越。标的符号会被用作缓存文件名和日志文件名的一部分，如果用户（或 LLM）传入包含 `../` 的字符串，可能写出预期目录之外。这个函数校验标的只包含合法字符。
 
 ---
 
 ## 任务流案例：一次失败的分析请求怎样穿过路由层
 
-把前面的抽象机制串成一个具体案例。假设配置是默认的 `data_vendors = "default"`，分析师请求一个无效标的 `get_stock_data("ZZZZZ")`。
+把前面的抽象机制串成一个具体案例。假设用户把 `core_stock_apis` 配成 `"yfinance,alpha_vantage"`（默认配置是单 vendor `"yfinance"`，不会触发 fallback；这里展示的是显式配置 fallback chain 的场景），分析师请求一个无效标的 `get_stock_data("ZZZZZ")`。
 
 ```mermaid
 sequenceDiagram
@@ -418,7 +418,7 @@ sequenceDiagram
     Route->>Route: category = core_stock_apis<br/>vendor = "default"<br/>chain = [yfinance, alpha_vantage]
     Route->>YFin: get_YFin_data_online("ZZZZZ")
     Note over YFin: normalize_symbol("ZZZZZ") 原样返回<br/>yfinance 查询返回空
-    YFin-->>Route: raise NoMarketDataError(<br/>  symbol="ZZZZZ", canonical="ZZZZZ",<br/>  detail="empty result")
+    YFin-->>Route: raise NoMarketDataError(<br/>  symbol="ZZZZZ", canonical="ZZZZZ",<br/>  detail="no rows between ...")
     Note over Route: last_no_data = 该异常<br/>first_error 仍为 None<br/>continue
     Route->>AV: get_alpha_vantage_stock("ZZZZZ")
     Note over AV: AV 也返回无数据
