@@ -362,7 +362,7 @@ for entry in log.load_entries():
 
 ### 反思质量差
 
-反思是单次 LLM 调用，质量主要看 `quick_thinking_llm` 的水平。如果你发现反思套话多、不引用 alpha 数字，把快思考模型换成更强的（比如从 `gpt-4o-mini` 换成 `gpt-4o`）通常立刻见效。代价是每次反思贵几倍。
+反思是单次 LLM 调用，质量主要看 `quick_thinking_llm` 的水平。如果你发现反思套话多、不引用 alpha 数字，把快思考模型换成更强的（比如从 `gpt-5.4-mini` 换成 `gpt-5.4`）通常立刻见效。代价是每次反思贵几倍。
 
 ### 想完全关掉记忆
 

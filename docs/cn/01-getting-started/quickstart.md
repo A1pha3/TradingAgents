@@ -166,6 +166,31 @@ Step 8: Reasoning Effort
 
 运行结束后，CLI 先打印 "Analysis Complete!" 和耗时摘要，然后依次问两个问题：是否保存报告、是否在终端显示完整报告。
 
+### 保存报告
+
+```
+Save report? [Y/n]: Y
+Save path (press Enter for default):
+```
+
+先问是否保存，输入 `Y`；再问保存路径，直接回车用默认路径：
+
+```
+./reports/NVDA_20260713_193015/
+├── complete_report.md          # 合并版完整报告
+├── 1_analysts/                 # 四个分析师报告
+│   ├── market.md
+│   ├── sentiment.md
+│   ├── news.md
+│   └── fundamentals.md
+├── 2_research/                 # 多空辩论
+├── 3_trading/                  # 交易提案
+├── 4_risk/                     # 风险辩论
+└── 5_portfolio/                # 最终决策
+```
+
+这个目录结构是 [报告系统](../06-internals/reporting.md) 的统一输出，CLI 和 Python API 共享同一套格式。
+
 ### 终端报告
 
 保存完会再问 `Display full report on screen? [Y/n]`，输入 `Y` 把完整报告打印到屏幕。报告分五部分，对应五个团队：
@@ -191,31 +216,6 @@ IV. Risk Management（风险管理）
 V. Portfolio Management（组合管理）
    - Final Decision：最终决策，含 5 级评级、投资逻辑、目标价、时间窗口
 ```
-
-### 保存报告
-
-```
-Save report? [Y/n]: Y
-Save path (press Enter for default): 
-```
-
-第一个问是否保存，输入 `Y`；第二个问保存路径，直接回车用默认路径：
-
-```
-./reports/NVDA_20260713_193015/
-├── complete_report.md          # 合并版完整报告
-├── 1_analysts/                 # 四个分析师报告
-│   ├── market.md
-│   ├── sentiment.md
-│   ├── news.md
-│   └── fundamentals.md
-├── 2_research/                 # 多空辩论
-├── 3_trading/                  # 交易提案
-├── 4_risk/                     # 风险辩论
-└── 5_portfolio/                # 最终决策
-```
-
-这个目录结构是 [报告系统](../06-internals/reporting.md) 的统一输出，CLI 和 Python API 共享同一套格式。
 
 ### 评级信号
 

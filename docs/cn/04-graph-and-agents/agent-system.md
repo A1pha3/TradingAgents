@@ -15,9 +15,9 @@
 
 # Agent 团队：13 个角色的职责、Prompt 与工具
 
-## 引言：不是 13 个 LLM，是 13 套不同的契约
+## 引言：不是 13 个一样的 LLM，是 13 套不同的契约
 
-读 TradingAgents 的代码容易产生一个错觉："13 个角色不就是 13 个 LLM 实例各跑一次？"。但只要看一下角色目录，差别立刻浮现：分析师调工具、辩手不调工具；裁判输出结构化 JSON、辩手输出纯文本；Sentiment Analyst 干脆不用 tool-calling，改用 prompt 注入。同样是"调一次 LLM"，背后是完全不同的契约模式。
+读 TradingAgents 的代码容易产生一个错觉："13 个角色不就是 13 个 LLM 实例各跑一次？"。但只要看一下角色目录，差别立刻浮现：分析师调工具、辩手不调工具；裁判输出结构化 JSON、辩手输出纯文本；Sentiment Analyst 干脆不用 tool-calling，改用 prompt 注入。同样是"调一次 LLM"，背后是完全不同的契约模式。（严格说 13 个节点里只有 12 个是 LLM 角色，第 13 个是非 LLM 的 Msg Clear 消息清理节点，详见[架构总览](../03-architecture/overview.md#13-个角色表)的角色表。）
 
 这篇文档把这些差异系统化拆开。先按职责把 13 个角色分成 4 类（分析师 / 研究员 / 管理层 / 风险辩手），讲每类的共性；再用对照表横向对比 prompt 结构、工具使用、输出形态；最后讲三个跨角色的横切关注点：工具注册、标的身份解析、消息清理。读完这一篇，再去读 prompt 模板时，看到的就不再是 13 段散乱的文本，而是 4 套有规律的设计模式。
 
@@ -46,7 +46,7 @@ flowchart TD
     end
 
     subgraph TR["交易员（1 个，quick LLM）"]
-        TR_"Trader<br/>结构化输出 TraderProposal"
+        TRA["Trader<br/>结构化输出 TraderProposal"]
     end
 
     subgraph RD["风险辩手（3 个，quick LLM）"]
@@ -447,9 +447,9 @@ from tradingagents.agents.utils.news_data_tools import (
 
 ### 标的身份解析：防止模型认错公司
 
-`agent_utils.py:78-119` 的 `resolve_instrument_identity` 是一个常被忽略但极其重要的函数。它做的是给定 ticker，用 yfinance 查询公司名、行业、板块、交易所、报价类型，返回确定性 identity 字典。
+`agent_utils.py:79-119` 的 `resolve_instrument_identity` 是一个常被忽略但极其重要的函数。它做的是给定 ticker，用 yfinance 查询公司名、行业、板块、交易所、报价类型，返回确定性 identity 字典。
 
-`agent_utils.py:79-95` 的 docstring 解释了为什么需要它：
+`agent_utils.py:80-95` 的 docstring 解释了为什么需要它：
 
 > This exists to stop the pipeline from hallucinating a *different* company when a chart pattern suggests a different industry than the real one (#814): without a ground-truth name, the market analyst would pattern-match the price action to a narrative and invent an identity that then cascaded through every downstream agent.
 

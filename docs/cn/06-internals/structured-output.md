@@ -519,7 +519,7 @@ sequenceDiagram
 | 选择 | 替代方案 | 为什么这么选 |
 |------|----------|--------------|
 | prose 仍是主产物 | 全量 JSON | 分析推理是给人读的，JSON 损失表达力 |
-| 结构化只叠在 3 个决策 agent | 所有 agent 都结构化 | 分析师、辩论的输出给下游 agent 当上下文，prose 更自然 |
+| 结构化只叠在 4 个 agent（3 个决策 + 情绪） | 所有 agent 都结构化 | 分析师、辩论的输出给下游 agent 当上下文，prose 更自然；唯有 Sentiment 需要可比较的量化字段 |
 | 优雅降级三步 | 失败就报错 | 结构化失败不应阻塞 pipeline，prose 兜底永远可用 |
 | 能力表驱动 | per-call if 梯子 | 集中管理 per-model quirk，加新模型只改一个文件 |
 | _DEFAULT 假设全支持 | 默认保守 | 让新模型开箱即用，有 quirk 再补表 |

@@ -19,9 +19,13 @@ TradingAgents 的核心依赖包括：
 
 - **langgraph ≥ 0.4.8**：状态图编排引擎
 - **langchain-core ≥ 0.3.81**：LLM 抽象层
+- **langchain-openai / langchain-anthropic / langchain-google-genai**：各家模型的 langchain 适配
 - **yfinance ≥ 1.4.1**：默认金融数据源
 - **stockstats ≥ 0.6.5**：技术指标计算
+- **questionary ≥ 2.1.0 / rich ≥ 14.0.0 / typer ≥ 0.21.0**：CLI 交互与终端显示
 - 完整依赖见 `pyproject.toml` 的 `[project.dependencies]`
+
+> **关于 `pyproject.toml` 里看起来多余的依赖**：`akshare`、`redis`、`backtrader` 等包也列在依赖里，但当前核心流水线（`tradingagents/` 和 `cli/`）并未 import 它们。它们多是为历史路径或未来扩展预留。安装时会一并装上，不影响运行；如果你在做精简部署，可自行评估。
 
 ---
 
